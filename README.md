@@ -1,5 +1,7 @@
 # My Farm
 
+See [the Decision Atlas](docs/decisions/atlas.md) for the single append-only Markdown record of owner-approved product choices and their GitHub issue references.
+
 My Farm is a standalone local farming sim. In local development, a Rust server owns the farm state, persists it to SQLite, and exposes a small JSON API consumed by a browser client rendered with React Three Fiber.
 
 GitHub Pages serves a browser-only demo that runs an early production slice through Rust WebAssembly. The demo is static, saves progress in browser localStorage, and intentionally does not include every local-server feature.
