@@ -67,6 +67,7 @@ test("bootstraps from the gameplay websocket without polling farm snapshots", as
 });
 
 test("updates ready field actions from pushed websocket snapshots without REST polling", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === "mobile", "Desktop field selection is covered here.");
   const growingView = growingFieldView();
   const readyView = {
     ...growingView,
