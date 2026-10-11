@@ -141,7 +141,7 @@ A browser-local sample Farm used to show an early production slice without requi
 _Avoid_: Mock farm, fake farm
 
 **Guided Tutorial**:
-A five-card modal onboarding sequence that opens inside play after starting a New Farm and introduces the fresh Farm, Field Plots and planting, crop timers and harvesting, Silo storage, and coins, experience, and Build progression.
+Compact, dismissible Farm guidance for selecting a Resident, planting a stored Crop, observing growth, and following the real harvest through Silo deposit. It keeps gameplay available and offers an Oven/Bread next action; later lessons remain tracked by #132.
 _Avoid_: Tutorial panel, help menu, onboarding page
 
 **Field Plot**:

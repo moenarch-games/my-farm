@@ -178,12 +178,11 @@ test("sends commands and reset over the gameplay websocket without REST gameplay
   } else {
     await expect(page.getByText("Farm reset")).toBeVisible();
   }
-  const dialog = page.getByRole("dialog", { name: "Guided Tutorial" });
-  await expect(dialog).toBeVisible();
-  await expect(dialog.getByText("Step 1 of 5")).toBeVisible();
-  await expect(dialog.getByText("Welcome to your fresh Farm")).toBeVisible();
+  const guidance = page.getByRole("region", { name: "Farm guidance" });
+  await expect(guidance).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Guided Tutorial" })).toHaveCount(0);
   if (testInfo.project.name !== "mobile") {
-    await closeGuidedTutorial(page);
+    await dismissFarmGuidance(page);
     await page.getByLabel("Field Plot plot-1").click({ force: true });
     await expect(resourceAmount(page.locator(".selection-inventory"), "Wheat", "6")).toBeVisible();
   }
@@ -1371,38 +1370,21 @@ test("top bar menu returns to the main menu", async ({ page }, testInfo) => {
   }
 });
 
-test("new farm opens the guided tutorial modal sequence", async ({ page }) => {
+test("new farm offers compact dismissible guidance while keeping play available", async ({ page }) => {
   await mockFarmApi(page);
   await page.goto("/");
-
   await page.getByRole("button", { name: "New Farm" }).click();
-
-  const dialog = page.getByRole("dialog", { name: "Guided Tutorial" });
-  await expect(dialog).toBeVisible();
-  await expect(dialog).toHaveAttribute("aria-modal", "true");
-  await expect(dialog.getByRole("button", { name: "Got it" })).toHaveCount(1);
-  await expect(dialog.getByText("Step 1 of 5")).toBeVisible();
-  await expect(dialog.getByText("Welcome to your fresh Farm")).toBeVisible();
-
-  const expectedCards = [
-    { step: "Step 2 of 5", title: "Field Plots and planting" },
-    { step: "Step 3 of 5", title: "Crop timers and harvesting" },
-    { step: "Step 4 of 5", title: "Silo storage" },
-    { step: "Step 5 of 5", title: "Coins, XP, and Build progression" },
-  ];
-
-  for (const card of expectedCards) {
-    await dialog.getByRole("button", { name: "Got it" }).click();
-    await expect(dialog.getByText(card.step)).toBeVisible();
-    await expect(dialog.getByText(card.title)).toBeVisible();
-    await expect(dialog.getByRole("button", { name: "Got it" })).toHaveCount(1);
-  }
-
-  await dialog.getByRole("button", { name: "Got it" }).click();
-  await expect(dialog).toHaveCount(0);
+  const guidance = page.getByRole("region", { name: "Farm guidance" });
+  await expect(guidance).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Guided Tutorial" })).toHaveCount(0);
+  await expect(page.getByLabel("Field Plot plot-1")).toBeVisible();
+  await guidance.getByRole("button", { name: "Dismiss guidance" }).click();
+  await expect(guidance).toHaveCount(0);
+  await page.getByRole("button", { name: "Resume guidance" }).click();
+  await expect(guidance).toBeVisible();
 });
 
-test("in-game reset opens the guided tutorial on the first card", async ({ page }, testInfo) => {
+test("in-game reset offers fresh Farm guidance", async ({ page }, testInfo) => {
   await mockFarmApi(page);
   await openFarm(page);
 
@@ -1413,13 +1395,12 @@ test("in-game reset opens the guided tutorial on the first card", async ({ page 
   } else {
     await expect(page.getByText("Farm reset")).toBeVisible();
   }
-  const dialog = page.getByRole("dialog", { name: "Guided Tutorial" });
-  await expect(dialog).toBeVisible();
-  await expect(dialog.getByText("Step 1 of 5")).toBeVisible();
-  await expect(dialog.getByText("Welcome to your fresh Farm")).toBeVisible();
+  const guidance = page.getByRole("region", { name: "Farm guidance" });
+  await expect(guidance).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Guided Tutorial" })).toHaveCount(0);
 });
 
-test("reset clears transient gameplay UI before showing the guided tutorial", async ({ page }, testInfo) => {
+test("reset clears transient gameplay UI before showing Farm guidance", async ({ page }, testInfo) => {
   await mockFarmApi(page, buildableFarmView());
   await openFarm(page);
 
@@ -1437,14 +1418,14 @@ test("reset clears transient gameplay UI before showing the guided tutorial", as
 
   await resetFarmFromPlaying(page, testInfo.project.name);
 
-  const dialog = page.getByRole("dialog", { name: "Guided Tutorial" });
-  await expect(dialog).toBeVisible();
+  const guidance = page.getByRole("region", { name: "Farm guidance" });
+  await expect(guidance).toBeVisible();
   await expect(page.getByRole("region", { name: "Farmers Market" })).toHaveCount(0);
   await expect(page.getByRole("navigation", { name: "Structures" })).toBeHidden();
   await expect(page.getByText("Place Field Plot")).toHaveCount(0);
 });
 
-test("guided tutorial blocks gameplay commands until it closes", async ({ page }) => {
+test("Farm guidance allows ordinary planting commands while visible", async ({ page }) => {
   const commands: CommandRequest[] = [];
   await mockFarmApi(page, farmView, catalog, (request) => {
     commands.push(request);
@@ -1453,22 +1434,14 @@ test("guided tutorial blocks gameplay commands until it closes", async ({ page }
 
   await page.getByRole("button", { name: "New Farm" }).click();
 
-  const dialog = page.getByRole("dialog", { name: "Guided Tutorial" });
-  await expect(dialog).toBeVisible();
+  const guidance = page.getByRole("region", { name: "Farm guidance" });
+  await expect(guidance).toBeVisible();
   const plot = page.getByLabel("Field Plot plot-1");
   const selectionPanel = page.locator(".panel-section").filter({
     has: page.getByRole("heading", { name: "Selection" }),
   });
   await plot.click({ force: true });
-  await expect(selectionPanel.getByRole("button", { name: "Plant Wheat" })).toHaveCount(0);
 
-  await plot.click({ force: true });
-  await page.mouse.up();
-  await page.waitForTimeout(150);
-  expect(commands).toHaveLength(0);
-
-  await closeGuidedTutorial(page);
-  await plot.click({ force: true });
   await expect(selectionPanel.getByRole("button", { name: "Plant Wheat" })).toBeVisible();
   await selectSeedTool(page, "Wheat");
   await plot.click({ force: true });
@@ -1479,8 +1452,7 @@ test("guided tutorial blocks gameplay commands until it closes", async ({ page }
   });
 });
 
-test("guided tutorial pauses the client clock until gameplay resumes", async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name === "mobile", "Desktop field selection is covered here.");
+test("Farm guidance leaves elapsed production visible and running", async ({ page }, testInfo) => {
   const openedAt = Date.now();
   await mockFarmApi(page, {
     ...farmView,
@@ -1496,14 +1468,10 @@ test("guided tutorial pauses the client clock until gameplay resumes", async ({ 
   await openFarm(page);
   const progress = page.getByTestId("structure-status-feed-mill-progress");
   await expect(progress).toBeVisible();
-  const initialProgress = await progress.evaluate((element) =>
-    element instanceof HTMLElement ? element.style.getPropertyValue("--progress") : "",
-  );
-
   await resetFarmFromPlaying(page, testInfo.project.name);
-  const dialog = page.getByRole("dialog", { name: "Guided Tutorial" });
-  await expect(dialog).toBeVisible();
-  const pausedProgress = await progress.evaluate((element) =>
+  const guidance = page.getByRole("region", { name: "Farm guidance" });
+  await expect(guidance).toBeVisible();
+  const guidanceProgress = await progress.evaluate((element) =>
     element instanceof HTMLElement ? element.style.getPropertyValue("--progress") : "",
   );
 
@@ -1514,18 +1482,8 @@ test("guided tutorial pauses the client clock until gameplay resumes", async ({ 
         element instanceof HTMLElement ? element.style.getPropertyValue("--progress") : "",
       ),
     )
-    .toBe(pausedProgress);
-
-  await closeGuidedTutorial(page);
-  await expect
-    .poll(
-      () =>
-        progress.evaluate((element) =>
-          element instanceof HTMLElement ? element.style.getPropertyValue("--progress") : "",
-      ),
-      { timeout: 3_500 },
-    )
-    .not.toBe(pausedProgress);
+    .not.toBe(guidanceProgress);
+  await expect(guidance).toBeVisible();
 });
 
 test("barn and silo are preplaced storage structures", async ({ page }, testInfo) => {
@@ -3836,6 +3794,7 @@ const catalog: CatalogDocument = {
 };
 
 const farmView: FarmView = {
+  resident_last_harvest_deposit: {},
   last_update_ms: Date.now(),
   xp: 14,
   level: 3,
@@ -4533,12 +4492,10 @@ async function startFarm(page: Page) {
   await page.getByRole("button", { name: "Start Farm" }).click();
 }
 
-async function closeGuidedTutorial(page: Page) {
-  const dialog = page.getByRole("dialog", { name: "Guided Tutorial" });
-  for (let step = 0; step < 5; step += 1) {
-    await dialog.getByRole("button", { name: "Got it" }).click();
-  }
-  await expect(dialog).toHaveCount(0);
+async function dismissFarmGuidance(page: Page) {
+  const guidance = page.getByRole("region", { name: "Farm guidance" });
+  await guidance.getByRole("button", { name: "Dismiss guidance" }).click();
+  await expect(guidance).toHaveCount(0);
 }
 
 async function openBuildMenu(page: Page) {

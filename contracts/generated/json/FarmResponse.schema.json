@@ -532,6 +532,13 @@
           },
           "default": null
         },
+        "resident_last_harvest_deposit": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/HarvestDepositReceipt"
+          },
+          "default": {}
+        },
         "resident_locations": {
           "type": "object",
           "additionalProperties": {
@@ -660,6 +667,27 @@
       "required": [
         "id",
         "tile"
+      ]
+    },
+    "HarvestDepositReceipt": {
+      "description": "Last actual harvested-crop deposit, independent of later inventory spending.",
+      "type": "object",
+      "properties": {
+        "completed_at_ms": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "crop_id": {
+          "type": "string"
+        },
+        "task_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "task_id",
+        "crop_id",
+        "completed_at_ms"
       ]
     },
     "HouseInterior": {

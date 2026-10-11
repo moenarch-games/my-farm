@@ -100,10 +100,9 @@ test("pages demo persists a Farmhouse Oven production save in localStorage", asy
   await page.getByRole("button", { name: "Menu" }).click();
   await page.getByRole("button", { name: "New Farm" }).click();
   await expect(page.getByText("Demo farm reset")).toBeVisible();
-  const dialog = page.getByRole("dialog", { name: "Guided Tutorial" });
-  await expect(dialog).toBeVisible();
-  await expect(dialog.getByText("Step 1 of 5")).toBeVisible();
-  await expect(dialog.getByText("Welcome to your fresh Farm")).toBeVisible();
+  const guidance = page.getByRole("region", { name: "Farm guidance" });
+  await expect(guidance).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Guided Tutorial" })).toHaveCount(0);
   await expect(page.evaluate((key) => window.localStorage.getItem(key), demoSaveKey)).resolves.toContain(
     '"version":0',
   );
@@ -123,20 +122,20 @@ test("pages demo shows Farmhouse Oven status from a WASM save", async ({ page })
   await expect(page.getByRole("navigation", { name: "Structures" }).getByRole("button", { name: /Bakery/ })).toHaveCount(0);
 });
 
-test("pages demo suspends refresh polling while the guided tutorial is open", async ({ page }) => {
+test("pages demo continues real WASM refreshes while Farm guidance is visible", async ({ page }) => {
   await countDemoFarmRefreshes(page);
   await page.goto("/");
   await expect(page.getByRole("region", { name: "Main menu" })).toBeVisible();
 
   await page.getByRole("button", { name: "New Farm" }).click();
 
-  const dialog = page.getByRole("dialog", { name: "Guided Tutorial" });
-  await expect(dialog).toBeVisible();
+  const guidance = page.getByRole("region", { name: "Farm guidance" });
+  await expect(guidance).toBeVisible();
   const initialRefreshes = await demoFarmRefreshCount(page);
   await page.waitForTimeout(2800);
-  expect(await demoFarmRefreshCount(page)).toBe(initialRefreshes);
+  expect(await demoFarmRefreshCount(page)).toBeGreaterThan(initialRefreshes);
 
-  await closeGuidedTutorial(page);
+  await dismissFarmGuidance(page);
   await expect.poll(() => demoFarmRefreshCount(page), { timeout: 3_500 }).toBeGreaterThan(initialRefreshes);
 });
 
@@ -172,12 +171,10 @@ async function demoFarmRefreshCount(page: Page) {
   return page.evaluate(() => (window as unknown as { __demoFarmRefreshes: number }).__demoFarmRefreshes);
 }
 
-async function closeGuidedTutorial(page: Page) {
-  const dialog = page.getByRole("dialog", { name: "Guided Tutorial" });
-  for (let step = 0; step < 5; step += 1) {
-    await dialog.getByRole("button", { name: "Got it" }).click();
-  }
-  await expect(dialog).toHaveCount(0);
+async function dismissFarmGuidance(page: Page) {
+  const guidance = page.getByRole("region", { name: "Farm guidance" });
+  await guidance.getByRole("button", { name: "Dismiss guidance" }).click();
+  await expect(guidance).toHaveCount(0);
 }
 
 async function enterHouseRoom(page: Page, roomName: "Living Room" | "Kitchen" | "Bedroom") {

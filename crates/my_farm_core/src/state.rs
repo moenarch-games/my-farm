@@ -75,6 +75,10 @@ pub struct FarmState {
     pub resident_inventories: BTreeMap<String, ResidentInventory>,
     #[serde(default)]
     pub blocked_resident_tasks: BTreeMap<String, BlockedResidentTask>,
+    #[serde(default)]
+    pub resident_harvest_cargo: BTreeMap<String, Vec<HarvestCargo>>,
+    #[serde(default)]
+    pub resident_last_harvest_deposit: BTreeMap<String, HarvestDepositReceipt>,
     #[serde(default = "default_house_interior")]
     pub house_interior: HouseInterior,
     #[ts(type = "number")]
@@ -141,6 +145,10 @@ struct FarmStateSerde {
     resident_inventories: BTreeMap<String, ResidentInventory>,
     #[serde(default)]
     blocked_resident_tasks: BTreeMap<String, BlockedResidentTask>,
+    #[serde(default)]
+    resident_harvest_cargo: BTreeMap<String, Vec<HarvestCargo>>,
+    #[serde(default)]
+    resident_last_harvest_deposit: BTreeMap<String, HarvestDepositReceipt>,
     #[serde(default = "default_house_interior")]
     house_interior: HouseInterior,
     next_id: u64,
@@ -196,6 +204,8 @@ impl FarmStateSerde {
             resident_task_queues: self.resident_task_queues,
             resident_inventories: self.resident_inventories,
             blocked_resident_tasks: self.blocked_resident_tasks,
+            resident_harvest_cargo: self.resident_harvest_cargo,
+            resident_last_harvest_deposit: self.resident_last_harvest_deposit,
             house_interior: self.house_interior,
             next_id: self.next_id,
         };
@@ -203,6 +213,7 @@ impl FarmStateSerde {
         ensure_resident_locations(&mut farm);
         ensure_resident_inventories(&mut farm);
         ensure_tool_stocks(&mut farm);
+        validate_harvest_observations(&farm)?;
 
         if let Some(legacy_bakery) = legacy_bakery {
             migrate_legacy_bakery(&mut farm, legacy_bakery, forward_oven_present);
@@ -408,6 +419,23 @@ pub struct DeliveryOrder {
 pub struct FarmResident {
     pub id: String,
     pub display_name: String,
+}
+
+/// Only currently carried harvest-origin units, bounded by physical inventory.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, PartialEq, Eq)]
+pub struct HarvestCargo {
+    pub task_id: String,
+    pub crop_id: String,
+    pub quantity: u32,
+}
+
+/// Last actual harvested-crop deposit, independent of later inventory spending.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, PartialEq, Eq)]
+pub struct HarvestDepositReceipt {
+    pub task_id: String,
+    pub crop_id: String,
+    #[ts(type = "number")]
+    pub completed_at_ms: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, PartialEq, Eq)]
@@ -639,6 +667,60 @@ pub enum ReservedWorkTarget {
     },
 }
 
+// Observation data cannot attribute more harvested units than physically carried.
+// Missing fields in older saves remain empty; malformed new history fails closed.
+fn validate_harvest_observations(farm: &FarmState) -> Result<(), String> {
+    for (resident_id, cargo) in &farm.resident_harvest_cargo {
+        if !farm
+            .residents
+            .iter()
+            .any(|resident| resident.id == *resident_id)
+        {
+            return Err("harvest cargo references an unknown Resident".to_owned());
+        }
+        let inventory = farm
+            .resident_inventories
+            .get(resident_id)
+            .ok_or_else(|| "harvest cargo has no Resident inventory".to_owned())?;
+        if cargo.len() > inventory.item_capacity as usize {
+            return Err("harvest cargo exceeds Resident capacity".to_owned());
+        }
+        let mut totals = BTreeMap::<&str, u32>::new();
+        let mut origins = std::collections::BTreeSet::new();
+        for origin in cargo {
+            if origin.quantity == 0
+                || origin.task_id.is_empty()
+                || origin.crop_id.is_empty()
+                || !origins.insert((&origin.task_id, &origin.crop_id))
+            {
+                return Err("harvest cargo contains an invalid origin".to_owned());
+            }
+            let total = totals.entry(&origin.crop_id).or_default();
+            *total = total
+                .checked_add(origin.quantity)
+                .ok_or_else(|| "harvest cargo quantity overflow".to_owned())?;
+        }
+        for (crop_id, quantity) in totals {
+            if quantity > inventory.items.get(crop_id).copied().unwrap_or(0) {
+                return Err("harvest cargo exceeds physical carried stock".to_owned());
+            }
+        }
+    }
+    for (resident_id, receipt) in &farm.resident_last_harvest_deposit {
+        if !farm
+            .residents
+            .iter()
+            .any(|resident| resident.id == *resident_id)
+            || receipt.task_id.is_empty()
+            || receipt.crop_id.is_empty()
+            || receipt.completed_at_ms > farm.last_update_ms
+        {
+            return Err("harvest deposit receipt contains an invalid identity".to_owned());
+        }
+    }
+    Ok(())
+}
+
 pub fn new_farm(now_ms: i64, catalog: &CatalogDocument) -> FarmState {
     let mut inventory = BTreeMap::new();
     inventory.insert("wheat".to_owned(), 6);
@@ -674,6 +756,8 @@ pub fn new_farm(now_ms: i64, catalog: &CatalogDocument) -> FarmState {
         resident_task_queues: default_resident_task_queues(),
         resident_inventories: default_resident_inventories(),
         blocked_resident_tasks: BTreeMap::new(),
+        resident_harvest_cargo: BTreeMap::new(),
+        resident_last_harvest_deposit: BTreeMap::new(),
         house_interior: default_house_interior(),
         next_id: 1,
     };

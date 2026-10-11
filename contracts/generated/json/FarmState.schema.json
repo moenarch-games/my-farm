@@ -820,6 +820,16 @@
         "$ref": "#/$defs/FarmhouseUpgradeKind"
       }
     },
+    "resident_harvest_cargo": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/HarvestCargo"
+        }
+      },
+      "default": {}
+    },
     "resident_inventories": {
       "type": "object",
       "additionalProperties": {
@@ -839,6 +849,13 @@
           "tools": {}
         }
       }
+    },
+    "resident_last_harvest_deposit": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/HarvestDepositReceipt"
+      },
+      "default": {}
     },
     "resident_locations": {
       "type": "object",
@@ -1305,6 +1322,49 @@
       "required": [
         "id",
         "tile"
+      ]
+    },
+    "HarvestCargo": {
+      "description": "Only currently carried harvest-origin units, bounded by physical inventory.",
+      "type": "object",
+      "properties": {
+        "crop_id": {
+          "type": "string"
+        },
+        "quantity": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "task_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "task_id",
+        "crop_id",
+        "quantity"
+      ]
+    },
+    "HarvestDepositReceipt": {
+      "description": "Last actual harvested-crop deposit, independent of later inventory spending.",
+      "type": "object",
+      "properties": {
+        "completed_at_ms": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "crop_id": {
+          "type": "string"
+        },
+        "task_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "task_id",
+        "crop_id",
+        "completed_at_ms"
       ]
     },
     "HouseInterior": {
