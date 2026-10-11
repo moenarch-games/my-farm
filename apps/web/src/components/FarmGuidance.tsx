@@ -24,7 +24,7 @@ export function FarmGuidance({ view, deposited, residentSelected, onDismiss, onI
     instruction = `${work.block.message} Select ${work.display_name} to inspect the Task and carried inventory.`;
   } else if (deposited) {
     title = "Harvest deposited";
-    instruction = "Your Crop is stored in the Silo. Select the Farmhouse to prepare the Oven and make Bread.";
+    instruction = "Your harvest reached the Silo. Select the Farmhouse to prepare the Oven and make Bread.";
   } else if (harvest) {
     title = "Follow the harvest to the Silo";
     instruction = `${harvest.display_name} must finish harvesting and deposit the carried Crop. Queued work is not stored output; Tools return afterward.`;
