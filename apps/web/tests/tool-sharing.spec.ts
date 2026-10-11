@@ -8,9 +8,13 @@ for (const width of [1280, 390]) {
     await page.setViewportSize({ width, height: 844 });
     const time = new Date("2026-10-12T00:00:00Z");
     await page.clock.install({ time });
-    await page.clock.pauseAt(time);
     await page.goto("/");
     await page.getByRole("button", { name: "New Farm" }).click();
+    // Let the real renderer publish its scene labels before freezing elapsed
+    // time for the admission boundary. Pausing RAF before initialization would
+    // prevent these actual interaction targets from being created.
+    await expect(page.getByLabel("Field Plot plot-1", { exact: true })).toBeVisible();
+    await page.clock.pauseAt(await page.evaluate(() => Date.now()));
     await seedWheat(page);
     for (const plot of ["plot-1", "plot-2"]) {
       await page.getByLabel(`Field Plot ${plot}`, { exact: true }).click();
