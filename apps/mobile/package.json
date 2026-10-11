@@ -30,7 +30,7 @@
     "abort-controller": "^3.0.0",
     "anser": "^2.0.0",
     "ansi-regex": "^6.0.0",
-    "ansi-styles": "^4.0.0",
+    "ansi-styles": "^7.0.0",
     "base64-js": "^1.5.1",
     "buffer": "^6.0.3",
     "chalk": "^4.0.0",
