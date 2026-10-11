@@ -1605,7 +1605,17 @@ struct ToolInterval {
 
 fn tool_intervals(farm: &FarmState) -> Vec<ToolInterval> {
     let mut result = Vec::new();
-    for (resident, queue) in &farm.resident_task_queues {
+    let residents = farm
+        .resident_task_queues
+        .keys()
+        .chain(farm.resident_inventories.keys())
+        .collect::<BTreeSet<_>>();
+    for resident in residents {
+        let queue = farm
+            .resident_task_queues
+            .get(resident)
+            .map(Vec::as_slice)
+            .unwrap_or_default();
         let mut held = Vec::<ToolInterval>::new();
         if let Some(inventory) = farm.resident_inventories.get(resident) {
             for (kind, quantity) in &inventory.tools {

@@ -24,6 +24,9 @@ creating a timing promise.
 
 No calendar, new task producer, secondary inventory, or new save format is
 persisted. Existing queues and custody reproduce the calendar after reload.
+Residents with physical custody remain in the calendar even when their saved
+queue key is absent. Without a queued return, that custody promises no future
+supply and cannot back another Resident's admission.
 Present saved Tool stock maps preserve absent per-kind keys as zero; serde
 whole-field defaults remain for older saves without Tool stock fields.
 
