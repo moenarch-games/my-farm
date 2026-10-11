@@ -212,7 +212,6 @@ impl FarmStateSerde {
 
         ensure_resident_locations(&mut farm);
         ensure_resident_inventories(&mut farm);
-        ensure_tool_stocks(&mut farm);
         validate_harvest_observations(&farm)?;
 
         if let Some(legacy_bakery) = legacy_bakery {
@@ -969,19 +968,6 @@ fn ensure_resident_inventories(farm: &mut FarmState) {
         farm.resident_inventories
             .entry(resident.id.clone())
             .or_insert_with(default_resident_inventory);
-    }
-}
-
-fn ensure_tool_stocks(farm: &mut FarmState) {
-    for (tool_kind, quantity) in default_tool_stock() {
-        farm.farmhouse_tool_stock
-            .entry(tool_kind)
-            .or_insert(quantity);
-    }
-    if let Some(tool_shed) = &mut farm.tool_shed {
-        for (tool_kind, quantity) in default_tool_stock() {
-            tool_shed.tool_stock.entry(tool_kind).or_insert(quantity);
-        }
     }
 }
 
