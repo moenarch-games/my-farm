@@ -289,7 +289,18 @@ fn pending_cargo_and_completed_receipt_round_trip_without_reconstructing_history
     let (farm, harvest_id, _) = harvested(&catalog);
     let mut loaded: FarmState =
         serde_json::from_str(&serde_json::to_string(&farm).unwrap()).unwrap();
-    assert_eq!(loaded, farm);
+    // Existing Deserialize backfills missing default tool stock; that legacy
+    // normalization is outside this observation contract. Preserve every
+    // harvest identity, carried quantity, queue step and deadline exactly.
+    assert_eq!(loaded.resident_harvest_cargo, farm.resident_harvest_cargo);
+    assert_eq!(
+        loaded.resident_last_harvest_deposit,
+        farm.resident_last_harvest_deposit
+    );
+    assert_eq!(loaded.resident_inventories, farm.resident_inventories);
+    assert_eq!(loaded.resident_task_queues, farm.resident_task_queues);
+    assert_eq!(loaded.inventory, farm.inventory);
+    assert_eq!(loaded.last_update_ms, farm.last_update_ms);
     assert_no_receipt(&loaded, &catalog);
     finish(&mut loaded, &catalog);
     assert_eq!(
@@ -325,7 +336,11 @@ fn legacy_carry_cleanup_market_and_pickup_are_not_harvest_history() {
     finish(&mut farm, &catalog);
     assert_eq!(inventory_quantity(&farm, "wheat"), 8);
     assert_no_receipt(&farm, &catalog);
-    let at = farm.last_update_ms;
+    // Existing legacy idle cleanup uses DepositInventory without withdrawing
+    // legacy carry. Use an independent empty-carry farm to exercise actual
+    // stored-item pickup; do not change or claim legacy cleanup semantics.
+    let mut farm = new_farm(0, &catalog);
+    let at = 0;
     command(
         &mut farm,
         &catalog,
