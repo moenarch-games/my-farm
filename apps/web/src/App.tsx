@@ -19,6 +19,8 @@ import {
   X,
 } from "lucide-react";
 import { createFarmClient, type FarmConnectionStatus } from "./api";
+import { FarmGuidance } from "./components/FarmGuidance";
+import { freshGuidance, loadGuidance, observeGuidance, persistGuidance } from "./farmGuidance";
 import { FarmScene } from "./components/FarmScene";
 import { HouseInteriorScene, type HouseInteriorMode, type HouseRoomId } from "./components/HouseInteriorScene";
 import {
@@ -181,29 +183,6 @@ const structureBuildCardMetas: Record<BuildableKind, StructureBuildCardMeta> = {
   },
 };
 
-const guidedTutorialCards = [
-  {
-    title: "Welcome to your fresh Farm",
-    body: "This New Farm starts clean so every crop, coin, and upgrade comes from your next commands.",
-  },
-  {
-    title: "Field Plots and planting",
-    body: "Field Plots hold one planted Crop job. Open Seed, choose Wheat, then use empty Field Plots to start growing.",
-  },
-  {
-    title: "Crop timers and harvesting",
-    body: "Crops count down until they become Ready Output. Use Harvest when the timer finishes to move crops into storage.",
-  },
-  {
-    title: "Silo storage",
-    body: "The Silo stores harvested Crops and has a limited capacity. Keep an eye on it before planting large batches.",
-  },
-  {
-    title: "Coins, XP, and Build progression",
-    body: "Delivery Orders and production earn coins and XP. Build progression unlocks more Field Plots, Machines, Shelters, and upgrades.",
-  },
-] as const;
-
 function useMediaQuery(query: string) {
   const [matches, setMatches] = useState(() =>
     typeof window === "undefined" ? false : window.matchMedia(query).matches,
@@ -248,7 +227,7 @@ export function App() {
   const [selectedDecorationId, setSelectedDecorationId] = useState<string | null>(null);
   const [selectedDecorationPlacementId, setSelectedDecorationPlacementId] = useState<string | null>(null);
   const [selectedTaskPreview, setSelectedTaskPreview] = useState<ResidentTaskPreviewSelection>(null);
-  const [guidedTutorialStep, setGuidedTutorialStep] = useState<number | null>(null);
+  const [guidance, setGuidance] = useState(loadGuidance);
   const [marketOpen, setMarketOpen] = useState(false);
   const [message, setMessage] = useState(
     initialScenarioId
@@ -264,7 +243,24 @@ export function App() {
   const versionRef = useRef(0);
   const plantSweepRef = useRef<PlantSweepState>(null);
   const harvestSweepRef = useRef<HarvestSweepState>(null);
-  const gameplayPaused = guidedTutorialStep !== null;
+
+  useEffect(() => {
+    if (view && !initialScenarioId) {
+      setGuidance((previous) => {
+        const next = observeGuidance(previous, view);
+        persistGuidance(next);
+        return next;
+      });
+    }
+  }, [view, initialScenarioId]);
+
+  const changeGuidanceVisibility = (dismissed: boolean) => {
+    setGuidance((previous) => {
+      const next = { ...previous, dismissed };
+      persistGuidance(next);
+      return next;
+    });
+  };
 
   useLayoutEffect(() => {
     versionRef.current = version;
@@ -311,9 +307,6 @@ export function App() {
   }, [load]);
 
   useEffect(() => {
-    if (gameplayPaused) {
-      return;
-    }
     const timer = window.setInterval(() => {
       setNowMs(Date.now());
       if (!demoMode) {
@@ -330,7 +323,7 @@ export function App() {
         .catch((error) => setMessage(error.message));
     }, 2500);
     return () => window.clearInterval(timer);
-  }, [applyFarmSnapshot, client, demoMode, gameplayPaused]);
+  }, [applyFarmSnapshot, client, demoMode]);
 
   useEffect(() => {
     if (demoMode || !client.connect) {
@@ -541,9 +534,6 @@ export function App() {
 
   const send = useCallback(
     async (command: FarmCommand): Promise<CommandResult> => {
-      if (gameplayPaused) {
-        return { accepted: false, error: "Gameplay is paused" };
-      }
       try {
         let response = await client.command({ expected_version: versionRef.current, command });
         if (!response.accepted && response.error?.startsWith("version mismatch")) {
@@ -559,7 +549,7 @@ export function App() {
         return { accepted: false, error: errorMessage };
       }
     },
-    [applyFarmSnapshot, gameplayPaused],
+    [applyFarmSnapshot],
   );
 
   const selectResidentForWork = useCallback(
@@ -586,7 +576,9 @@ export function App() {
     const response = await client.reset();
     applyFarmSnapshot(response.version, response.view, { force: true });
     clearTransientGameplayUi();
-    setGuidedTutorialStep(0);
+    const nextGuidance = freshGuidance();
+    persistGuidance(nextGuidance);
+    setGuidance(nextGuidance);
     setMessage(response.notice?.message ?? (demoMode ? "Demo farm reset" : "Farm reset"));
   }, [applyFarmSnapshot, clearTransientGameplayUi, client, demoMode]);
 
@@ -607,7 +599,6 @@ export function App() {
     setHarvestSweep(null);
     setActiveFieldTool({ type: "default" });
     setMarketOpen(false);
-    setGuidedTutorialStep(null);
     setScreen("main_menu");
   }, []);
 
@@ -1246,7 +1237,7 @@ export function App() {
 
   return (
     <main className={`app ${appToolClass}`}>
-      <div className="gameplay-surface" {...(gameplayPaused ? { inert: "" } : {})}>
+      <div className="gameplay-surface">
         {screen === "playing" && playScene === "house_interior" ? (
           <HouseInteriorScene
             catalog={catalog}
@@ -1274,7 +1265,7 @@ export function App() {
             catalog={catalog}
             view={view}
             nowMs={nowMs}
-            visualClockPaused={gameplayPaused}
+            visualClockPaused={false}
             selection={selection}
             activeFieldTool={activeFieldTool}
             buildPlacement={buildPlacement}
@@ -1438,18 +1429,12 @@ export function App() {
           />
         ) : null}
       </div>
-      {guidedTutorialStep !== null ? (
-        <GuidedTutorial
-          step={guidedTutorialStep}
-          onGotIt={() => {
-            setGuidedTutorialStep((currentStep) => {
-              if (currentStep === null || currentStep >= guidedTutorialCards.length - 1) {
-                return null;
-              }
-              return currentStep + 1;
-            });
-          }}
-        />
+      {screen === "playing" && playScene === "farm" && !initialScenarioId && guidance.dismissed ? (
+        <button className="farm-guidance-resume" type="button" onClick={() => changeGuidanceVisibility(false)}>Resume guidance</button>
+      ) : null}
+      {screen === "playing" && playScene === "farm" && !initialScenarioId && !guidance.dismissed ? (
+        <FarmGuidance view={view} deposited={guidance.deposited} residentSelected={selection?.type === "resident"}
+          onDismiss={() => changeGuidanceVisibility(true)} onInspect={select} />
       ) : null}
     </main>
   );
@@ -1636,31 +1621,6 @@ function MainMenu({
         ) : null}
       </div>
     </section>
-  );
-}
-
-function GuidedTutorial({ step, onGotIt }: { step: number; onGotIt: () => void }) {
-  const card = guidedTutorialCards[step];
-  const progress = `Step ${step + 1} of ${guidedTutorialCards.length}`;
-
-  return (
-    <div className="guided-tutorial-backdrop">
-      <section
-        className="guided-tutorial"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="guided-tutorial-title"
-        aria-describedby="guided-tutorial-copy"
-      >
-        <div className="guided-tutorial__eyebrow">{progress}</div>
-        <h2 id="guided-tutorial-title">Guided Tutorial</h2>
-        <h3>{card.title}</h3>
-        <p id="guided-tutorial-copy">{card.body}</p>
-        <button className="guided-tutorial__primary" type="button" onClick={onGotIt} autoFocus>
-          Got it
-        </button>
-      </section>
-    </div>
   );
 }
 

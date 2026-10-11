@@ -1432,66 +1432,6 @@ button[aria-disabled="true"] {
   font-weight: 800;
 }
 
-.guided-tutorial-backdrop {
-  position: absolute;
-  inset: 0;
-  z-index: 1100;
-  display: grid;
-  place-items: center;
-  padding: 20px;
-  background: rgba(24, 37, 32, 0.42);
-}
-
-.guided-tutorial {
-  width: min(440px, 100%);
-  display: grid;
-  gap: 10px;
-  padding: 22px;
-  border: 1px solid rgba(32, 49, 43, 0.3);
-  border-radius: 8px;
-  background: #fbf6e8;
-  box-shadow: 0 22px 56px rgba(24, 37, 32, 0.36);
-}
-
-.guided-tutorial__eyebrow {
-  color: #536a5e;
-  font-size: 13px;
-  font-weight: 850;
-}
-
-.guided-tutorial h2,
-.guided-tutorial h3,
-.guided-tutorial p {
-  margin: 0;
-}
-
-.guided-tutorial h2 {
-  font-size: 24px;
-  line-height: 1.1;
-}
-
-.guided-tutorial h3 {
-  font-size: 18px;
-  line-height: 1.2;
-}
-
-.guided-tutorial p {
-  color: #536a5e;
-  font-size: 15px;
-  font-weight: 650;
-  line-height: 1.45;
-}
-
-.guided-tutorial__primary {
-  justify-self: end;
-  min-width: 110px;
-  margin-top: 4px;
-  padding: 8px 14px;
-  background: #fff7d0;
-  border-color: #446d38;
-  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.48);
-}
-
 .side-panel {
   position: absolute;
   top: 72px;
@@ -3156,37 +3096,6 @@ h2 {
     gap: 10px;
   }
 
-  .guided-tutorial-backdrop {
-    place-items: end center;
-    padding: 12px 8px calc(94px + env(safe-area-inset-bottom));
-    background: rgba(24, 37, 32, 0.18);
-  }
-
-  .guided-tutorial {
-    width: min(430px, 100%);
-    gap: 8px;
-    padding: 14px;
-    border-radius: 12px;
-    box-shadow: 0 16px 38px rgba(24, 37, 32, 0.28);
-  }
-
-  .guided-tutorial h2 {
-    font-size: 18px;
-  }
-
-  .guided-tutorial h3 {
-    font-size: 16px;
-  }
-
-  .guided-tutorial p {
-    font-size: 13px;
-  }
-
-  .guided-tutorial__primary {
-    min-width: 96px;
-    min-height: 38px;
-  }
-
   .side-panel {
     display: none;
   }
@@ -3637,4 +3546,26 @@ h2 {
   .structure-context-menu__item {
     min-height: 46px;
   }
+}
+
+.farm-guidance {
+  position: absolute;
+  z-index: 80;
+  left: 16px;
+  bottom: 100px;
+  width: min(360px, calc(100% - 32px));
+  padding: 10px 12px;
+  border: 1px solid #738571;
+  border-radius: 8px;
+  background: #fbf6e8;
+  box-sizing: border-box;
+  font-size: 13px;
+}
+.farm-guidance p { margin: 5px 0 8px; line-height: 1.4; }
+.farm-guidance__actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.farm-guidance__actions button { min-height: 40px; }
+.farm-guidance-resume { position: absolute; left: 50%; top: 84px; transform: translateX(-50%); z-index: 80; min-height: 40px; }
+@media (max-width: 760px) {
+  .farm-guidance { left: 8px; width: min(360px, calc(100% - 16px)); top: 84px; bottom: auto; }
+
 }

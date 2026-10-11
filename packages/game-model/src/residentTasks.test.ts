@@ -549,6 +549,7 @@ function farmViewWithTask(task: ResidentTask | null): FarmView {
       }
     : undefined;
   return {
+    resident_last_harvest_deposit: {},
     last_update_ms: 0,
     xp: 0,
     level: 1,
