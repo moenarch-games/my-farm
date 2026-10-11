@@ -54,7 +54,7 @@ Stable node identity is the path in each leaf. Branches are navigational categor
       - **`my-farm/production/feedback/recent-completed-goals`** — **B**: Show brief completion notification and retain bounded inspectable recent completed-goal history, then remove finished goals from the live queue; durable and duplicate-free, not permanent analytics. [#200](https://github.com/moritzbrantner/my-farm/issues/200), [#135](https://github.com/moritzbrantner/my-farm/issues/135), [#126](https://github.com/moritzbrantner/my-farm/issues/126). Tags: `history`, `hud`.
 
     - **rewards**
-      - **`my-farm/production/rewards/goal-completion-bonus-xp`** — **B**: Completing a player-authored finite `Produce N new` goal grants **additional XP** beyond existing farming/production XP, exactly once on the final successful goal-attributed Barn deposit (N/N). Incomplete or cancelled goals earn no completion XP. The XP is awarded by the authoritative Farm progression model and shown in the compact completion notification/history; exact quantity-based versus flat bonus formula and anti-spam policy remain undecided. [#200](https://github.com/moritzbrantner/my-farm/issues/200), [#133](https://github.com/moritzbrantner/my-farm/issues/133), [#135](https://github.com/moritzbrantner/my-farm/issues/135). Tags: `progression`, `xp`, `reward`.
+      - **`my-farm/production/rewards/goal-completion-bonus-xp`** — **B**: Completing a player-authored finite `Produce N new` goal grants **additional XP** beyond existing farming/production XP, exactly once on the final successful goal-attributed Barn deposit (N/N). Incomplete or cancelled goals earn no completion XP. The XP is awarded by the authoritative Farm progression model and shown in the compact completion notification/history; **selected B:** completion XP scales with genuine goal-attributed production effort. Equivalent work (one 10-Bread goal versus ten 1-Bread goals) should earn approximately the same aggregate bonus, without a flat per-goal jackpot. The precise effort metric and XP conversion rate remain owner choices, and no diminishing-repeat policy is approved. [#200](https://github.com/moritzbrantner/my-farm/issues/200), [#133](https://github.com/moritzbrantner/my-farm/issues/133), [#135](https://github.com/moritzbrantner/my-farm/issues/135). Tags: `progression`, `xp`, `reward`.
 
 ## Cross-branch relationships for the graph
 
@@ -66,6 +66,8 @@ Stable node identity is the path in each leaf. Branches are navigational categor
 - **uses** `my-farm/production/feedback/recent-completed-goals` → `my-farm/production/accounting/deposit-completion`. Enter the bounded recent-history view only on confirmed completion.
 
 - **grants-on** `my-farm/production/rewards/goal-completion-bonus-xp` → `my-farm/production/accounting/deposit-completion`. Additional XP is granted once by existing Rust progression authority on the final new goal-attributed Barn deposit, never by UI events or a partial/cancelled goal.
+
+- **scaling** `my-farm/production/rewards/goal-completion-bonus-xp` → `my-farm/production/accounting/additional-output`. Bonus XP is proportional to genuinely completed, goal-attributed production effort; splitting equivalent work among multiple completed goals must not materially increase it. Exact effort metric remains to be chosen.
 
 ## Decision Atlas indexing and traceability handoff
 
