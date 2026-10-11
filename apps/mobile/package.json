@@ -20,7 +20,7 @@
     "@my-farm/game-client": "workspace:*",
     "@my-farm/game-scene": "workspace:*",
     "@my-farm/game-model": "workspace:*",
-    "@react-native-async-storage/async-storage": "1.24.0",
+    "@react-native-async-storage/async-storage": "3.1.1",
     "@react-native/assets-registry": "0.87.1",
     "@react-native/gradle-plugin": "0.87.1",
     "@react-native/js-polyfills": "0.87.1",
