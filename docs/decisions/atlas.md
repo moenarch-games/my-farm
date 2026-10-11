@@ -1,9 +1,13 @@
 - **How to use this Decision Atlas**
-  - This project owns one canonical Markdown source: `docs/decisions/atlas.md`. It records approved product decisions. GitHub issues contain the detailed work/acceptance contracts; the shared Decision Atlas viewer, when built, is read-only.
-  - Every explicit dotted number is a stable decision or branch ID, for example `3.5.2`. Cross-references refer to these IDs, **not** Markdown's automatic numbering.
-  - **Append-only rule:** add the next unused child number under the relevant parent; never renumber, reorder, delete or reuse an existing ID. Superseding an approved choice requires a new ID referring to the old one; the original remains visible. Concurrent writers must reconcile sibling IDs before merging.
-  - Older `my-farm/...` path IDs are preserved as legacy aliases on the imported decisions. Do not reinterpret or recycle those older identifiers; use dotted IDs for future references.
-  - `[agreed; implementation unverified]` means the owner has selected a design, not that the corresponding gameplay works. Add precise source/test references only after checking them. Existing architectural [ADRs](https://github.com/moritzbrantner/my-farm/tree/main/docs/adr) remain valid and distinct.
+  - This project owns one canonical Markdown source: `docs/decisions/atlas.md`. It is the durable place for **what the product should be**. GitHub issues contain work/acceptance contracts; code and tests contain implementation/evidence; the shared Decision Atlas viewer is read-only.
+  - The Atlas has exactly **two semantic leaf-entry kinds: Decision and Question**. Navigation branches only organize entries and are not a third kind. Existing leaves not explicitly marked `[question]` are Decisions.
+  - A **Decision** is owner-selected product intent. Agents follow it until a later Decision explicitly supersedes it. A **Question** is a consequential unresolved choice. Write new Question leaves with `[question]`; they are not automatically blockers.
+  - Coding agents retrieve the relevant Atlas entries before making consequential product choices. Follow applicable Decisions. If an unanswered Question materially affects the current task, ask the owner **one question at a time**. If a new consequential fork is discovered, append a Question instead of choosing silently.
+  - When a Question is answered, keep the Question and append a Decision that says `Answers X.Y`. When a Decision changes, keep it and append a Decision that says `Supersedes X.Y`. Do not add parallel entry categories such as constraint, deferred decision, assumption, or principle; express those meanings in the Decision/Question text and relationships.
+  - Every explicit dotted number is a stable entry or navigation-branch ID, for example `3.5.2`. Cross-references refer to these IDs, **not** Markdown's automatic numbering.
+  - **Append-only rule:** add the next unused child number under the relevant parent; never renumber, reorder, delete or reuse an existing ID. Concurrent writers must reconcile sibling IDs before merging.
+  - Older `my-farm/...` path IDs are preserved as legacy aliases on the imported Decisions. Do not reinterpret or recycle those older identifiers; use dotted IDs for future references.
+  - `[agreed; implementation unverified]` is implementation evidence on a Decision, not another Atlas entry kind. It means the owner has selected a design, not that the corresponding gameplay works. Add precise source/test references only after checking them. Existing architectural [ADRs](https://github.com/moritzbrantner/my-farm/tree/main/docs/adr) remain valid and distinct.
 
 - **1** Player experience
   - **1.1** Platform and distribution
