@@ -21,7 +21,7 @@ for (const width of [1280, 390]) {
     }
     await expect.poll(async () => (await saved(page)).resident_task_queues.woman?.length).toBe(2);
     const earlier = (await saved(page)).resident_task_queues.woman;
-    await page.getByLabel("Farm Residents").getByRole("button", { name: /Man/ }).click();
+    await selectResident(page, "Man");
     await seedWheat(page);
     await page.getByLabel("Field Plot plot-3", { exact: true }).click();
     await expect.poll(async () => (await saved(page)).resident_task_queues.man?.length).toBe(1);
@@ -34,14 +34,14 @@ for (const width of [1280, 390]) {
     await page.reload();
     await page.getByRole("button", { name: "Start Farm" }).click();
     // Persist the actual loaded Farm through an ordinary selection command.
-    await page.getByLabel("Farm Residents").getByRole("button", { name: /Woman/ }).click();
+    await selectResident(page, "Woman");
     const loaded = await saved(page);
     expect(loaded.resident_task_queues).toEqual(accepted.resident_task_queues);
     expect(loaded.resident_inventories).toEqual(accepted.resident_inventories);
     expect(totalHoes(loaded)).toBe(1);
 
     await page.clock.fastForward(180_000);
-    await page.getByLabel("Farm Residents").getByRole("button", { name: /Man/ }).click();
+    await selectResident(page, "Man");
     const finished = await saved(page);
     expect(finished.resident_task_queues.woman ?? []).toHaveLength(0);
     expect(finished.resident_task_queues.man ?? []).toHaveLength(0);
@@ -55,8 +55,22 @@ for (const width of [1280, 390]) {
 }
 
 async function seedWheat(page: Page) {
+  const mobileActions = page.getByRole("navigation", { name: "Farm actions" });
+  if (await mobileActions.isVisible()) {
+    await mobileActions.getByRole("button", { name: "Plant", exact: true }).click();
+    await page.getByLabel("Seed type").getByRole("button", { name: /Wheat/ }).click();
+    return;
+  }
   await page.locator(".interaction-tools").getByRole("button", { name: "Seed" }).click();
   await page.locator(".interaction-tools").getByRole("menuitemradio", { name: /Wheat/ }).click();
+}
+
+async function selectResident(page: Page, name: "Man" | "Woman") {
+  if (await page.getByRole("navigation", { name: "Farm actions" }).isVisible()) {
+    await page.getByLabel("Mobile farm controls")
+      .getByRole("button", { name: /^(Woman|Man) \d+$/ }).click();
+  }
+  await page.getByLabel("Farm Residents").getByRole("button", { name: new RegExp(`^${name}\\b`) }).click();
 }
 
 async function saved(page: Page): Promise<FarmState> {
