@@ -577,3 +577,59 @@ fn a_carried_tool_without_a_resident_queue_cannot_back_new_checkout() {
     assert_eq!(farm.resident_inventories["woman"].tools[&ToolKind::Hoe], 1);
     conserved(&farm, ToolKind::Hoe);
 }
+
+#[test]
+fn reordering_future_work_cannot_preempt_another_residents_accepted_checkout() {
+    let catalog = CatalogDocument::default_catalog();
+    let mut farm = new_farm(0, &catalog);
+    for plot in ["plot-1", "plot-2", "plot-3"] {
+        plant(&mut farm, &catalog, plot);
+    }
+    let woman_before = farm.resident_task_queues["woman"].clone();
+    assert_eq!(woman_before.len(), 3);
+    select(&mut farm, &catalog, "man");
+    plant(&mut farm, &catalog, "plot-4");
+    let accepted_man = farm.resident_task_queues["man"].clone();
+    assert!(
+        accepted_man
+            .iter()
+            .flat_map(|task| &task.steps)
+            .any(|step| matches!(step.work, ResidentTaskStepWork::PickupTools { .. }))
+    );
+    let initial_wheat = inventory_quantity(&new_farm(0, &catalog), "wheat");
+    let before = state(&farm);
+    let outcome = apply_command(
+        &mut farm,
+        &catalog,
+        FarmCommand::ReorderResidentTask {
+            resident_id: "woman".to_owned(),
+            task_id: woman_before[2].id.clone(),
+            before_task_id: Some(woman_before[1].id.clone()),
+        },
+        0,
+    );
+    if !outcome.accepted {
+        let reason = &outcome
+            .error
+            .as_ref()
+            .expect("Rejected reorder explains conflict")
+            .message;
+        assert!(
+            reason.contains("tool") || reason.contains("conflict") || reason.contains("reorder"),
+            "Unrelated rejection: {reason}"
+        );
+        assert_eq!(state(&farm), before, "Rejected reorder must be atomic");
+    } else {
+        assert_eq!(farm.resident_task_queues["woman"][0], woman_before[0]);
+        assert_eq!(farm.resident_task_queues["woman"][1].id, woman_before[2].id);
+        assert_eq!(farm.resident_task_queues["woman"][2].id, woman_before[1].id);
+    }
+    assert_eq!(
+        farm.resident_task_queues["man"], accepted_man,
+        "Reorder preempted another Resident's accepted physical checkout"
+    );
+    conserved(&farm, ToolKind::Hoe);
+    finish(&mut farm, &catalog, ToolKind::Hoe);
+    assert!(farm.field_plots[..4].iter().all(|plot| plot.crop.is_some()));
+    assert_eq!(inventory_quantity(&farm, "wheat"), initial_wheat - 4);
+}

@@ -160,3 +160,27 @@ Re-running all fourteen cases against unchanged `c461201` core yields thirteen
 green and one genuine RED: the missing-queue checkout is accepted. The corrected
 blocked-holder and numeric-boundary cases both pass. Later atomic-rejection and
 conservation assertions in the missing-queue case remain unexecuted until repair.
+
+## Reorder preserves other Residents' accepted commitments
+
+Independent regression for review4243646212, authored against frozen production
+`c235994` after the initial #214 implementation. Existing Atlas3.1.2/3.2.1/3.2.2
+protect accepted commitments; this test records no new owner Decision. Real commands
+admit Woman's Wheat plantings for plots1/2/3, then Man's plot4 planting with an actual
+pending PickupTools step. Move Woman's third task before her second using the actual
+ReorderResidentTask command. Man's complete accepted queue, including timestamps,
+paths and physical pickup/return terms, must remain exactly unchanged.
+
+A useful conflict rejection is permitted only with the entire Farm unchanged. An
+accepted reorder must actually produce the requested future ID order and preserve
+Woman's active task; an accepted no-op is not sufficient. Whichever outcome occurs,
+all four accepted plantings must eventually complete with exactly four Wheat consumed
+and one Hoe conserved at every observation. Existing positive native reorder tests
+remain required; blanket rejection of all reorders does not meet this contract.
+
+Frozen baseline genuinely accepts this reorder and shifts Man's previously accepted
+queue, failing exact equality. Completion/conservation assertions after this failure
+remain unexecuted. The fixture is not a fabricated inactive queue or a locked Crop.
+The current FarmCommand API has no task-cancellation command, so no invented Cancel
+adapter/lifecycle test is added here. Existing append/reload/blocked-holder/return
+coverage remains protected; full core verification is required after repair.
