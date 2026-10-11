@@ -754,6 +754,7 @@ fn plan_resident_work(
     let mut scratch = farm.clone();
     strip_trailing_cleanup_steps(&mut scratch, &selected_resident_id);
     let farm_plan = &scratch;
+    validate_tool_timing(farm_plan)?;
     let started_at_ms = farm_plan
         .resident_task_queues
         .get(&selected_resident_id)
@@ -1537,10 +1538,14 @@ fn available_tool_shed_source(farm: &FarmState, tool_kind: ToolKind) -> Option<T
 }
 
 fn tool_source_available(farm: &FarmState, source: &ToolSourceRef, tool_kind: ToolKind) -> bool {
-    tool_source_quantity(farm, source, tool_kind) > 0
-        || tool_intervals(farm).iter().any(|interval| {
-            interval.source == *source && interval.kind == tool_kind && interval.end < i64::MAX
+    let indefinitely_held: u64 = tool_intervals(farm)
+        .iter()
+        .filter(|interval| {
+            interval.source == *source && interval.kind == tool_kind && interval.end == i64::MAX
         })
+        .map(|interval| u64::from(interval.quantity))
+        .sum();
+    physical_tool_total(farm, source, tool_kind) > indefinitely_held
 }
 
 fn storage_source_sort_key(source: &StorageSourceRef) -> &'static str {
@@ -1660,7 +1665,11 @@ fn tool_intervals(farm: &FarmState) -> Vec<ToolInterval> {
                                 if quantity > 0 {
                                     result.push(ToolInterval {
                                         quantity,
-                                        end: at,
+                                        end: if farm.blocked_resident_tasks.contains_key(resident) {
+                                            i64::MAX
+                                        } else {
+                                            at
+                                        },
                                         ..origin.clone()
                                     });
                                     origin.quantity -= quantity;
@@ -1699,7 +1708,7 @@ fn commitment_order(interval: &ToolInterval) -> (bool, u64, &str) {
             .task_id
             .strip_prefix("task-")
             .and_then(|id| id.parse().ok())
-            .unwrap_or(u64::MAX),
+            .unwrap_or(0),
         &interval.resident,
     )
 }
@@ -1784,6 +1793,7 @@ fn earliest_tool_start(
             started_at_ms: start,
             ready_at_ms: ready,
         });
+        validate_tool_timing(&scratch)?;
         let intervals = tool_intervals(&scratch);
         let mut shift = 0;
         for interval in intervals
@@ -1838,7 +1848,21 @@ fn shift_task_and_tail(
     Ok(())
 }
 
+fn validate_tool_timing(farm: &FarmState) -> Result<(), CommandError> {
+    for task in farm.resident_task_queues.values().flatten() {
+        task.steps
+            .iter()
+            .skip(1)
+            .try_fold(task.ready_at_ms, |at, step| {
+                at.checked_add(resident_task_step_duration_ms(step))
+            })
+            .ok_or_else(|| CommandError::new("tool reservation timing overflow"))?;
+    }
+    Ok(())
+}
+
 fn reconcile_tool_times(farm: &mut FarmState) -> Result<(), CommandError> {
+    validate_tool_timing(farm)?;
     let budget = farm
         .resident_task_queues
         .values()
@@ -1855,7 +1879,9 @@ fn reconcile_tool_times(farm: &mut FarmState) -> Result<(), CommandError> {
                     adjustment = Some((
                         resident.clone(),
                         pair[1].id.clone(),
-                        release - pair[1].started_at_ms,
+                        release
+                            .checked_sub(pair[1].started_at_ms)
+                            .ok_or_else(|| CommandError::new("tool reservation timing overflow"))?,
                     ));
                     break;
                 }
@@ -1869,12 +1895,14 @@ fn reconcile_tool_times(farm: &mut FarmState) -> Result<(), CommandError> {
             for interval in &intervals {
                 if let Some(release) = tool_conflict_release(farm, &intervals, interval) {
                     if release == i64::MAX {
-                        return Err(CommandError::new("required tool unavailable"));
+                        continue;
                     }
                     adjustment = Some((
                         interval.resident.clone(),
                         interval.task_id.clone(),
-                        release - interval.start,
+                        release
+                            .checked_sub(interval.start)
+                            .ok_or_else(|| CommandError::new("tool reservation timing overflow"))?,
                     ));
                     break;
                 }
@@ -2249,9 +2277,9 @@ fn complete_resident_tasks(
     let mut events = Vec::new();
     let mut failed = BTreeSet::new();
     loop {
-        if reconcile_tool_times(farm).is_err() {
-            break;
-        }
+        // Malformed timing must not stop unrelated accepted work. Physical
+        // pickup checks below still prevent stealing held Tools.
+        let _ = reconcile_tool_times(farm);
         // The existing executor advances the earliest ready head across Residents.
         // At a shared instant a physical return precedes a dependent checkout.
         let next = farm
@@ -2319,6 +2347,22 @@ fn ready_resident_task_step(
     let task = queue.first()?;
     if task.ready_at_ms > now_ms {
         return None;
+    }
+    if let Some(ResidentTaskStep {
+        work: ResidentTaskStepWork::PickupTools { source, tools },
+        ..
+    }) = task.steps.first()
+    {
+        if tools.iter().any(|stack| {
+            tool_source_quantity(farm, source, stack.tool_kind) < stack.quantity
+                && farm.resident_inventories.iter().any(|(other, inventory)| {
+                    other != resident_id
+                        && inventory.tool_sources.get(&stack.tool_kind) == Some(source)
+                        && inventory.tools.get(&stack.tool_kind).copied().unwrap_or(0) > 0
+                })
+        }) {
+            return None;
+        }
     }
     Some((
         task.id.clone(),
