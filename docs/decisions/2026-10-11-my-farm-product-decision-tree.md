@@ -6,7 +6,7 @@ decision_status: accepted
 implementation_status: not-verified
 date: 2026-10-11
 tags: [my-farm, decision-atlas, resident-control, production-scheduling, reservations, ux]
-issues: [115, 125, 126, 133, 134, 135, 148, 150, 153, 171, 172, 200]
+issues: [115, 125, 126, 130, 133, 134, 135, 148, 150, 153, 171, 172, 200]
 ---
 
 # My Farm — product decision tree / trie
@@ -54,7 +54,8 @@ Stable node identity is the path in each leaf. Branches are navigational categor
       - **`my-farm/production/feedback/recent-completed-goals`** — **B**: Show brief completion notification and retain bounded inspectable recent completed-goal history, then remove finished goals from the live queue; durable and duplicate-free, not permanent analytics. [#200](https://github.com/moritzbrantner/my-farm/issues/200), [#135](https://github.com/moritzbrantner/my-farm/issues/135), [#126](https://github.com/moritzbrantner/my-farm/issues/126). Tags: `history`, `hud`.
 
     - **rewards**
-      - **`my-farm/production/rewards/goal-completion-bonus-xp`** — **B**: Completing a player-authored finite `Produce N new` goal grants **additional XP** beyond existing farming/production XP, exactly once on the final successful goal-attributed Barn deposit (N/N). Incomplete or cancelled goals earn no completion XP. The XP is awarded by the authoritative Farm progression model and shown in the compact completion notification/history; **selected B:** completion XP scales with genuine goal-attributed production effort. Equivalent work (one 10-Bread goal versus ten 1-Bread goals) should earn approximately the same aggregate bonus, without a flat per-goal jackpot. The precise effort metric and XP conversion rate remain owner choices, and no diminishing-repeat policy is approved. [#200](https://github.com/moritzbrantner/my-farm/issues/200), [#133](https://github.com/moritzbrantner/my-farm/issues/133), [#135](https://github.com/moritzbrantner/my-farm/issues/135). Tags: `progression`, `xp`, `reward`.
+      - **`my-farm/production/rewards/goal-completion-bonus-xp`** — **B**: Completing a player-authored finite `Produce N new` goal grants **additional XP** beyond existing farming/production XP, exactly once on the final successful goal-attributed Barn deposit (N/N). Incomplete or cancelled goals earn no completion XP. The XP is awarded by the authoritative Farm progression model and shown in the compact completion notification/history; **selected B:** completion XP scales with genuine goal-attributed production effort. Equivalent work (one 10-Bread goal versus ten 1-Bread goals) should earn approximately the same aggregate bonus, without a flat per-goal jackpot. The effort metric is now **B: standard catalog production difficulty based on canonical product/recipe requirements**, not actual Resident time, travel, waiting or inefficient work. The standard value's manual/derived authoring method and XP conversion rate remain open; no diminishing-repeat policy is approved. [#200](https://github.com/moritzbrantner/my-farm/issues/200), [#133](https://github.com/moritzbrantner/my-farm/issues/133), [#135](https://github.com/moritzbrantner/my-farm/issues/135). Tags: `progression`, `xp`, `reward`.
+      - **`my-farm/production/rewards/standard-catalog-effort`** — **B**: Bonus XP uses the product/recipe's **standard catalog-defined production effort** grounded in its canonical requirements, rather than observed Resident working time, distance, waits, detours or intentionally inefficient routes. Equivalent output under the same accepted catalog version should earn the same bonus regardless of whether ingredients were already stored or newly produced; snapshot the effective effort terms when a goal is admitted. The value's manual/derived definition, precise XP conversion and rounding remain undecided. [#130](https://github.com/moritzbrantner/my-farm/issues/130), [#133](https://github.com/moritzbrantner/my-farm/issues/133), [#200](https://github.com/moritzbrantner/my-farm/issues/200). Tags: `catalog`, `progression`, `xp`, `balance`.
 
 ## Cross-branch relationships for the graph
 
@@ -69,6 +70,8 @@ Stable node identity is the path in each leaf. Branches are navigational categor
 
 - **scaling** `my-farm/production/rewards/goal-completion-bonus-xp` → `my-farm/production/accounting/additional-output`. Bonus XP is proportional to genuinely completed, goal-attributed production effort; splitting equivalent work among multiple completed goals must not materially increase it. Exact effort metric remains to be chosen.
 
+- **basis-for** `my-farm/production/rewards/standard-catalog-effort` → `my-farm/production/rewards/goal-completion-bonus-xp`. Fixed/catalog-standard difficulty, not observed travel or extra work, determines the XP effort input; the original bonus node still controls exactly-once grant on completion.
+
 ## Decision Atlas indexing and traceability handoff
 
 - **Authority:** My Farm owns these product decisions. Its existing GitHub issues own detailed PRDs and acceptance criteria. The planned Atlas aggregates **read-only**; it must not become a second decision database.
@@ -80,6 +83,6 @@ Stable node identity is the path in each leaf. Branches are navigational categor
 
 ## Scope and integrity
 
-- 22 distinct accepted leaf decisions from the My Farm design session, captured on 2026-10-11.
-- Includes recent decisions **B: bounded recent completed-goal history**, and **B: one additional XP award on real goal completion**.
+- 23 distinct accepted leaf decisions from the My Farm design session, captured on 2026-10-11.
+- Includes recent decisions **B: bounded recent completed-goal history**, **B: additional effort-proportional XP awarded on real goal completion**, and **B: catalog-standard product effort is the XP basis**.
 - Do not infer a feature is implemented from this document. First production Pages acceptance for automatic Wheat→Bread goals remains in [#200](https://github.com/moritzbrantner/my-farm/issues/200).
