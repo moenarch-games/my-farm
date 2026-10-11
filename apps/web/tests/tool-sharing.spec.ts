@@ -14,7 +14,9 @@ for (const width of [1280, 390]) {
     // time for the admission boundary. Pausing RAF before initialization would
     // prevent these actual interaction targets from being created.
     await expect(page.getByLabel("Field Plot plot-1", { exact: true })).toBeVisible();
-    await page.clock.pauseAt(await page.evaluate(() => Date.now()));
+    // Schedule a future pause so the observer-to-driver round trip cannot
+    // request a timestamp that has already elapsed. No work is queued yet.
+    await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1_000));
     await seedWheat(page);
     for (const plot of ["plot-1", "plot-2"]) {
       await page.getByLabel(`Field Plot ${plot}`, { exact: true }).click();
