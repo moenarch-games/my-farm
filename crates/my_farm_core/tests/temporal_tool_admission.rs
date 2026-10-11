@@ -478,3 +478,27 @@ fn two_physical_hoes_allow_overlapping_resident_custody_without_duplication() {
     }
     panic!("Two-copy fixture failed to finish");
 }
+
+#[test]
+fn unrepresentable_remaining_tool_timeline_rejects_new_work_atomically() {
+    let catalog = CatalogDocument::default_catalog();
+    let mut farm = new_farm(0, &catalog);
+    plant(&mut farm, &catalog, "plot-1");
+    // Saved-state fault: the next completion fits i64, but adding the actual
+    // remaining physical steps cannot produce a representable return deadline.
+    farm.resident_task_queues.get_mut("woman").unwrap()[0].ready_at_ms = i64::MAX - 1;
+    select(&mut farm, &catalog, "man");
+    let before = state(&farm);
+    let rejected = apply_command(
+        &mut farm,
+        &catalog,
+        FarmCommand::PlantCrop {
+            plot_id: "plot-2".to_owned(),
+            crop_id: "corn".to_owned(),
+        },
+        0,
+    );
+    assert!(!rejected.accepted);
+    assert_eq!(state(&farm), before);
+    conserved(&farm, ToolKind::Hoe);
+}

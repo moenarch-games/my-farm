@@ -122,3 +122,11 @@ inside the command and is absent from the remaining queue; observing that actual
 custody replaces a mistaken test assumption that the PickupTools step persists.
 No default stock quantities are changed. The expanded current candidate passes
 all twelve cases in an independent isolated Cargo target.
+
+An additional numeric-boundary case sets an admitted task's next completion to
+`i64::MAX - 1` through explicit saved-state fault injection. Its remaining
+physical return cannot have a representable deadline. A new Corn planting must
+reject atomically rather than wrap or promise that return; the existing Hoe
+remains conserved. This verifies admission only, not execution or successful
+loading of an invalid save. The isolated focused case passes on the hardened
+candidate, bringing the protected contract to thirteen cases.
