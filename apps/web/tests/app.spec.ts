@@ -3794,6 +3794,7 @@ const catalog: CatalogDocument = {
 };
 
 const farmView: FarmView = {
+  resident_last_harvest_deposit: {},
   last_update_ms: Date.now(),
   xp: 14,
   level: 3,
