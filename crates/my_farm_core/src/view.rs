@@ -42,6 +42,9 @@ pub struct FarmView {
     pub selected_resident_id: String,
     pub resident_locations: std::collections::BTreeMap<String, crate::Tile>,
     pub resident_work: std::collections::BTreeMap<String, ResidentWorkView>,
+    #[serde(default)]
+    pub resident_last_harvest_deposit:
+        std::collections::BTreeMap<String, crate::HarvestDepositReceipt>,
     pub reservations: ReservationView,
     #[serde(default)]
     #[ts(optional)]
@@ -384,6 +387,7 @@ pub fn farm_view(farm: &FarmState, catalog: &CatalogDocument) -> FarmView {
         selected_resident_id: farm.selected_resident_id.clone(),
         resident_locations: farm.resident_locations.clone(),
         resident_work: resident_work(farm, catalog),
+        resident_last_harvest_deposit: farm.resident_last_harvest_deposit.clone(),
         reservations: reservations(farm),
         resident_cleanup_blocks: cleanup_blocks(farm, catalog),
         house_interior: farm.house_interior.clone(),

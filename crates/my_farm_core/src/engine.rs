@@ -1,13 +1,13 @@
 use crate::{
     AnimalShelterState, AnimalState, CatalogDocument, DecorationDef, DecorationPlacement,
     DeliveryOrder, FarmShopRejectionWindow, FarmShopSaleWindow, FarmShopState, FarmState,
-    FarmhouseUpgradeKind, FieldPlot, ItemKind, ItemStack, MachineJob, MachineKind, MachineState,
-    OvenJob, OvenJobStatus, RecipeTarget, ReservedWorkTarget, ResidentTask, ResidentTaskKind,
-    ResidentTaskStep, ResidentTaskStepWork, Room, RoomTile, ShelterKind, StorageKind,
-    StorageSourceRef, StructureKind, Tile, ToolKind, ToolShedState, ToolSourceRef, ToolStack,
-    add_inventory, add_shelter_animals, barn_storage_used, crop_storage_used,
-    default_resident_task_step_duration_ms, default_tool_stock, gain_xp, inventory_quantity,
-    next_id, remove_inventory, scaled_duration_ms, update_level,
+    FarmhouseUpgradeKind, FieldPlot, HarvestCargo, HarvestDepositReceipt, ItemKind, ItemStack,
+    MachineJob, MachineKind, MachineState, OvenJob, OvenJobStatus, RecipeTarget,
+    ReservedWorkTarget, ResidentTask, ResidentTaskKind, ResidentTaskStep, ResidentTaskStepWork,
+    Room, RoomTile, ShelterKind, StorageKind, StorageSourceRef, StructureKind, Tile, ToolKind,
+    ToolShedState, ToolSourceRef, ToolStack, add_inventory, add_shelter_animals, barn_storage_used,
+    crop_storage_used, default_resident_task_step_duration_ms, default_tool_stock, gain_xp,
+    inventory_quantity, next_id, remove_inventory, scaled_duration_ms, update_level,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -1958,6 +1958,7 @@ fn complete_resident_tasks(
                     farm,
                     catalog,
                     &resident_id,
+                    &task_id,
                     step.clone(),
                     completed_at_ms,
                 ) {
@@ -2053,6 +2054,7 @@ fn complete_resident_task_step(
     farm: &mut FarmState,
     catalog: &CatalogDocument,
     resident_id: &str,
+    task_id: &str,
     step: ResidentTaskStep,
     completed_at_ms: i64,
 ) -> Result<Vec<FarmEvent>, ResidentTaskBlock> {
@@ -2141,6 +2143,24 @@ fn complete_resident_task_step(
             };
             farm.field_plots[plot_index].crop = None;
             add_resident_items(farm, resident_id, &[ItemStack::new(&crop_id, quantity)]);
+            if quantity > 0 {
+                let cargo = farm
+                    .resident_harvest_cargo
+                    .entry(resident_id.to_owned())
+                    .or_default();
+                if let Some(origin) = cargo
+                    .iter_mut()
+                    .find(|origin| origin.task_id == task_id && origin.crop_id == crop_id)
+                {
+                    origin.quantity += quantity;
+                } else {
+                    cargo.push(HarvestCargo {
+                        task_id: task_id.to_owned(),
+                        crop_id: crop_id.clone(),
+                        quantity,
+                    });
+                }
+            }
             if let Some(crop) = catalog.crop(&crop_id) {
                 gain_xp(farm, catalog, crop.xp);
             }
@@ -2343,11 +2363,23 @@ fn complete_resident_task_step(
             add_inventory(farm, &item_id, quantity);
             Ok(Vec::new())
         }
-        ResidentTaskStepWork::DepositItems { items, .. } => {
-            remove_resident_items(farm, resident_id, &items)
+        ResidentTaskStepWork::DepositItems { destination, items } => {
+            let harvested = remove_resident_items(farm, resident_id, &items)
                 .map_err(|error| ResidentTaskBlock::new("missing_carried_items", error.message))?;
             for item in items {
                 add_inventory(farm, &item.item_id, item.quantity);
+            }
+            if destination == StorageSourceRef::Silo {
+                for origin in harvested {
+                    farm.resident_last_harvest_deposit.insert(
+                        resident_id.to_owned(),
+                        HarvestDepositReceipt {
+                            task_id: origin.task_id,
+                            crop_id: origin.crop_id,
+                            completed_at_ms,
+                        },
+                    );
+                }
             }
             Ok(Vec::new())
         }
@@ -2419,7 +2451,7 @@ fn remove_resident_items(
     farm: &mut FarmState,
     resident_id: &str,
     stacks: &[ItemStack],
-) -> Result<(), CommandError> {
+) -> Result<Vec<HarvestCargo>, CommandError> {
     let inventory = farm
         .resident_inventories
         .entry(resident_id.to_owned())
@@ -2439,7 +2471,36 @@ fn remove_resident_items(
             inventory.items.remove(&stack.item_id);
         }
     }
-    Ok(())
+    // Successful physical withdrawals consume harvest-origin units first. Other
+    // work discards this attribution; only an actual Silo deposit uses it as a receipt.
+    let mut removed = Vec::new();
+    if let Some(cargo) = farm.resident_harvest_cargo.get_mut(resident_id) {
+        for stack in stacks {
+            let mut remaining = stack.quantity;
+            for origin in cargo
+                .iter_mut()
+                .filter(|origin| origin.crop_id == stack.item_id)
+            {
+                let quantity = remaining.min(origin.quantity);
+                if quantity > 0 {
+                    removed.push(HarvestCargo {
+                        quantity,
+                        ..origin.clone()
+                    });
+                    origin.quantity -= quantity;
+                    remaining -= quantity;
+                }
+                if remaining == 0 {
+                    break;
+                }
+            }
+        }
+        cargo.retain(|origin| origin.quantity > 0);
+        if cargo.is_empty() {
+            farm.resident_harvest_cargo.remove(resident_id);
+        }
+    }
+    Ok(removed)
 }
 
 fn add_resident_tools(
