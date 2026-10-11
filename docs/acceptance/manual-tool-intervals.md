@@ -102,3 +102,23 @@ a fresh serialized Farm and verifies its original defaults. This distinguishes
 legitimate legacy absence from the modern checked-out-tool duplication above.
 The expanded isolated baseline is **3 passing / 7 failing** across ten cases;
 no production edits or new public interfaces accompany these tests.
+
+## Adjacent custody cases during implementation
+
+A separate acceptance context added two cases after initial production candidate
+`e828118`, while the producer independently hardened adjacent paths. This is
+additional independent coverage, not a claim that these two tests preceded all
+production edits. The blocked-holder case is green on the frozen initial
+candidate: an actual queued planting loses its Wheat input through explicit
+saved-state fault injection, then the real executor marks its Resident blocked
+while retaining the Hoe. Man's separately available Corn cannot justify a new
+checkout against that unguaranteed return; rejection preserves the full state.
+An unrelated Sickle harvest must still finish through the actual executor.
+
+The two-copy input fixture has two real Hoes in source storage. Normal commands
+allow both Residents to physically hold one copy before the first return, then
+conserve exactly two through completion. The second adjacent pickup executes
+inside the command and is absent from the remaining queue; observing that actual
+custody replaces a mistaken test assumption that the PickupTools step persists.
+No default stock quantities are changed. The expanded current candidate passes
+all twelve cases in an independent isolated Cargo target.

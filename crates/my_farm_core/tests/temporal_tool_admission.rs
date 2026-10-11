@@ -364,3 +364,117 @@ fn legacy_missing_whole_tool_stock_retains_initial_defaults() {
     conserved(&loaded, ToolKind::Hoe);
     conserved(&loaded, ToolKind::Sickle);
 }
+
+#[test]
+fn a_blocked_holder_cannot_back_new_checkout_or_stop_unrelated_tool_work() {
+    let catalog = CatalogDocument::default_catalog();
+    let mut farm = new_farm(0, &catalog);
+    plant(&mut farm, &catalog, "plot-1");
+    assert_eq!(farm.resident_inventories["woman"].tools[&ToolKind::Hoe], 1);
+    // Saved-state fault: the planting input disappears after admission. The
+    // actual executor, not a fabricated blocked read model, detects the failure.
+    farm.inventory.insert("wheat".to_owned(), 0);
+    apply_elapsed(&mut farm, &catalog, 180_000);
+    assert!(farm.blocked_resident_tasks.contains_key("woman"));
+    assert_eq!(farm.resident_inventories["woman"].tools[&ToolKind::Hoe], 1);
+    conserved(&farm, ToolKind::Hoe);
+    // Corn is separately available: rejection cannot be explained by the
+    // missing Wheat that blocks the first Resident's accepted task.
+    assert!(inventory_quantity(&farm, "corn") > 0);
+    let now = farm.last_update_ms;
+    assert!(
+        apply_command(
+            &mut farm,
+            &catalog,
+            FarmCommand::SelectResident {
+                resident_id: "man".to_owned(),
+            },
+            now
+        )
+        .accepted
+    );
+    assert!(farm.blocked_resident_tasks.contains_key("woman"));
+    assert_eq!(farm.resident_inventories["woman"].tools[&ToolKind::Hoe], 1);
+    let before = state(&farm);
+    let rejected = apply_command(
+        &mut farm,
+        &catalog,
+        FarmCommand::PlantCrop {
+            plot_id: "plot-3".to_owned(),
+            crop_id: "corn".to_owned(),
+        },
+        now,
+    );
+    assert!(
+        !rejected.accepted,
+        "Blocked holder has no backed return time"
+    );
+    assert_eq!(state(&farm), before, "Rejected checkout mutated prior work");
+
+    farm.field_plots[1].crop = Some(PlantedCrop {
+        item_id: "wheat".to_owned(),
+        planted_at_ms: 0,
+        ready_at_ms: 0,
+    });
+    assert!(
+        apply_command(
+            &mut farm,
+            &catalog,
+            FarmCommand::HarvestCrop {
+                plot_id: "plot-2".to_owned(),
+            },
+            now
+        )
+        .accepted
+    );
+    for time in (now + 100..=now + 180_000).step_by(100) {
+        apply_elapsed(&mut farm, &catalog, time);
+        conserved(&farm, ToolKind::Hoe);
+        conserved(&farm, ToolKind::Sickle);
+        assert!(!farm.blocked_resident_tasks.contains_key("man"));
+        if farm.resident_task_queues["man"].is_empty() {
+            assert!(farm.field_plots[1].crop.is_none());
+            return;
+        }
+    }
+    panic!("Blocked Hoe holder prevented unrelated Sickle work");
+}
+
+#[test]
+fn two_physical_hoes_allow_overlapping_resident_custody_without_duplication() {
+    let catalog = CatalogDocument::default_catalog();
+    let mut farm = new_farm(0, &catalog);
+    // Authoritative input fixture with two real copies; no default stock rebalance.
+    farm.farmhouse_tool_stock.insert(ToolKind::Hoe, 2);
+    plant(&mut farm, &catalog, "plot-1");
+    let first_return = step_completion(farm.resident_task_queues["woman"].last().unwrap(), false);
+    select(&mut farm, &catalog, "man");
+    plant(&mut farm, &catalog, "plot-2");
+    // Adjacent pickup completes inside the real command, before the first
+    // Resident's return. Observe physical custody rather than a removed step.
+    assert!(first_return > farm.last_update_ms);
+    assert_eq!(farm.resident_inventories["woman"].tools[&ToolKind::Hoe], 1);
+    assert_eq!(farm.resident_inventories["man"].tools[&ToolKind::Hoe], 1);
+    for time in (0..=180_000).step_by(100) {
+        apply_elapsed(&mut farm, &catalog, time);
+        let stored = farm
+            .farmhouse_tool_stock
+            .get(&ToolKind::Hoe)
+            .copied()
+            .unwrap_or(0);
+        let carried: u32 = farm
+            .resident_inventories
+            .values()
+            .map(|inventory| inventory.tools.get(&ToolKind::Hoe).copied().unwrap_or(0))
+            .sum();
+        assert_eq!(stored + carried, 2);
+        assert!(farm.blocked_resident_tasks.is_empty());
+        if farm.resident_task_queues.values().all(Vec::is_empty) {
+            assert!(farm.field_plots[..2].iter().all(|plot| plot.crop.is_some()));
+            assert_eq!(stored, 2);
+            assert_eq!(carried, 0);
+            return;
+        }
+    }
+    panic!("Two-copy fixture failed to finish");
+}
