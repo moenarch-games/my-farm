@@ -68,3 +68,21 @@ repository's `bun run validate` completion gate. No proven affected-test depende
 mapping exists for shared planner/elapsed/serialization boundaries, so future
 implementation requires the full applicable suite. Keep this acceptance-only PR
 draft while red. No production browser or Pages completion is claimed.
+
+## Physical stock survives reload during custody
+
+`reloading_an_actual_checked_out_tool_preserves_physical_stock` uses a normal
+PlantCrop command and actual immediate adjacent tool pickup. Before serialization,
+there is one Hoe in total across storage and Resident custody. Reload must retain
+that exact physical quantity, carried inventory, queue and timestamp; returning
+the tool must conserve the same total. Modern saves must not recreate an absent
+storage key while that tool is checked out. Legacy defaults do not justify
+inventing an additional tool in a current save.
+
+Independent baseline `a1ec8ee`, acceptance branch `3d15c8`: the new case fails
+at the first post-reload conservation assertion (total 2, expected 1).
+`ensure_tool_stocks` currently backfills the absent Hoe key even when one is
+carried. An isolated Cargo target confirms this result; the full eight-case
+contract is 2 passing / 6 failing, with the other five failures still rejecting
+future shared-tool admission. This is a #171/#214 blocker, not an approved change
+to onboarding scope or a successful tool-reservation result.

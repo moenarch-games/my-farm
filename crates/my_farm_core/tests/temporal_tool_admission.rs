@@ -297,3 +297,22 @@ fn two_residents_share_sickle_and_deposit_each_real_harvest_once() {
         "Replayed elapsed deposit duplicated output"
     );
 }
+
+#[test]
+fn reloading_an_actual_checked_out_tool_preserves_physical_stock() {
+    let catalog = CatalogDocument::default_catalog();
+    let mut farm = new_farm(0, &catalog);
+    plant(&mut farm, &catalog, "plot-1");
+    // The starting Resident can complete the adjacent tool pickup immediately.
+    // This command still uses the real physical transfer, not a seeded result.
+    apply_elapsed(&mut farm, &catalog, 0);
+    assert_eq!(farm.resident_inventories["woman"].tools[&ToolKind::Hoe], 1);
+    conserved(&farm, ToolKind::Hoe);
+    let mut loaded = restored(&farm);
+    conserved(&loaded, ToolKind::Hoe);
+    assert_eq!(loaded.farmhouse_tool_stock, farm.farmhouse_tool_stock);
+    assert_eq!(loaded.resident_inventories, farm.resident_inventories);
+    assert_eq!(loaded.resident_task_queues, farm.resident_task_queues);
+    assert_eq!(loaded.last_update_ms, farm.last_update_ms);
+    finish(&mut loaded, &catalog, ToolKind::Hoe);
+}
