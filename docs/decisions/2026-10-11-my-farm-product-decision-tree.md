@@ -67,6 +67,7 @@ Stable node identity is the path in each leaf. Branches are navigational categor
 - **Authority:** My Farm owns these product decisions. Its existing GitHub issues own detailed PRDs and acceptance criteria. The planned Atlas aggregates **read-only**; it must not become a second decision database.
 - **Index contract proposed earlier:** schema/index/validation in `coding-tooling`, CI publication in `reusable-workflows`, GitHub Pages aggregator that consumes repository-published indexes at build time. No such viewer or validated schema is asserted here.
 - **Identity:** Retain the stable `my-farm/...` IDs across refactors and represent changes to an accepted decision explicitly rather than silently renaming IDs.
+- **Shared indexing integration:** Tracking issue: [coding-tooling#315](https://github.com/moritzbrantner/coding-tooling/issues/315). The GitHub Pages Atlas viewer and reusable index publication remain future work; this document is the source tree now.
 - **Evidence:** Issue references are verified owner-specification anchors. Exact code symbols, acceptance tests, CI publication, actual Pages behavior and implementation status **remain unverified**; never invent them. Only mark verified traceability when a concrete commit/symbol/test can be checked.
 - **Migration:** When the shared validator and per-decision schema are built, migrate or index these leaf records without altering their owner-approved choices; do not add a competing authoring source or commit generated fleet-wide indexes to My Farm.
 
