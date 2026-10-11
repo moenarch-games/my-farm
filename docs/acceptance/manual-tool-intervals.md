@@ -130,3 +130,23 @@ reject atomically rather than wrap or promise that return; the existing Hoe
 remains conserved. This verifies admission only, not execution or successful
 loading of an invalid save. The isolated focused case passes on the hardened
 candidate, bringing the protected contract to thirteen cases.
+
+## Missing queue cannot erase physical custody
+
+Independent adjacent regression on production baseline `c461201` (current
+acceptance head `c941b74`, identical core engine): a real accepted Wheat planting
+checks out Woman's only Hoe. Serialize that actual Farm, remove **only** Woman's
+queue key, and deserialize successfully. Keep every inventory/source/other save
+field intact. Man's new Wheat planting must reject atomically because physical
+custody has no guaranteed return; preserve the full Farm and exactly one Hoe.
+The test fails at the rejection assertion: current admission accepts the task.
+This regression precedes the missing-queue production repair, but follows earlier
+#214 implementation. No new save format or recovery policy is prescribed.
+
+A source-input check caught an earlier acceptance weakness: fresh Farm is level 1,
+so the existing blocked-holder Corn rejection hits `requires level 2` before tool
+admission. Its rejection alone does not establish blocked-custody protection.
+The missing-queue test deliberately uses available, unlocked Wheat, with no blocked
+marker or vanished-input fault. Existing Corn-based rejection cases require a
+separate eligibility correction and re-verification; do not cite their green
+results as proof that tool admission was exercised.

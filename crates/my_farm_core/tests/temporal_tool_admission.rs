@@ -502,3 +502,62 @@ fn unrepresentable_remaining_tool_timeline_rejects_new_work_atomically() {
     assert_eq!(state(&farm), before);
     conserved(&farm, ToolKind::Hoe);
 }
+
+#[test]
+fn a_carried_tool_without_a_resident_queue_cannot_back_new_checkout() {
+    let catalog = CatalogDocument::default_catalog();
+    let mut farm = new_farm(0, &catalog);
+    plant(&mut farm, &catalog, "plot-1");
+    assert_eq!(farm.resident_inventories["woman"].tools[&ToolKind::Hoe], 1);
+    conserved(&farm, ToolKind::Hoe);
+
+    // An accepted saved-state boundary retains physical custody even when its
+    // queue entry is absent. Remove only that entry, leaving the actual command's
+    // carried inventory and all other serialized fields intact.
+    let mut saved = state(&farm);
+    assert!(
+        saved["resident_task_queues"]
+            .as_object_mut()
+            .unwrap()
+            .remove("woman")
+            .is_some()
+    );
+    let mut farm: FarmState = serde_json::from_value(saved).unwrap();
+    assert!(!farm.resident_task_queues.contains_key("woman"));
+    assert_eq!(farm.resident_inventories["woman"].tools[&ToolKind::Hoe], 1);
+    conserved(&farm, ToolKind::Hoe);
+    assert!(inventory_quantity(&farm, "wheat") > 0);
+    let now = farm.last_update_ms;
+    assert!(
+        apply_command(
+            &mut farm,
+            &catalog,
+            FarmCommand::SelectResident {
+                resident_id: "man".to_owned(),
+            },
+            now
+        )
+        .accepted
+    );
+    let before = state(&farm);
+    let outcome = apply_command(
+        &mut farm,
+        &catalog,
+        FarmCommand::PlantCrop {
+            plot_id: "plot-3".to_owned(),
+            crop_id: "wheat".to_owned(),
+        },
+        now,
+    );
+    assert!(
+        !outcome.accepted,
+        "Physical holder without a queue has no guaranteed return"
+    );
+    assert_eq!(
+        state(&farm),
+        before,
+        "Rejected checkout changed the saved Farm"
+    );
+    assert_eq!(farm.resident_inventories["woman"].tools[&ToolKind::Hoe], 1);
+    conserved(&farm, ToolKind::Hoe);
+}
