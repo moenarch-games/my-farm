@@ -79,6 +79,43 @@ test("actual Silo deposit remains recognized when another Resident consumes the 
   await expect(guidance).toContainText("Harvest deposited");
 });
 
+test("direct carried-crop reuse does not count as a Silo deposit", async ({ page }) => {
+  await newFarm(page);
+  const guidance = page.getByRole("region", { name: "Farm guidance" });
+  await page.getByLabel("Farm Residents").getByRole("button", { name: /Man/ }).click();
+  await page.locator(".interaction-tools").getByRole("button", { name: "Seed" }).click();
+  await page.locator(".interaction-tools").getByRole("menuitemradio", { name: /Wheat/ }).click();
+  await page.getByLabel("Field Plot plot-1", { exact: true }).click();
+  await expect.poll(async () => (await savedFarm(page)).resident_task_queues.man?.length ?? 0).toBeGreaterThan(0);
+  await page.clock.fastForward(60_000);
+  await expect(page.getByLabel("Field Plot plot-1", { exact: true })).toHaveAttribute("data-wheat-appearance", "ready");
+  await expect(page.getByTestId("storage-summary-chip")).toHaveAttribute("aria-label", /Silo 8 of 40/);
+  await page.locator(".interaction-tools").getByRole("button", { name: "Harvest", exact: true }).click();
+  await page.getByLabel("Field Plot plot-1", { exact: true }).click();
+  await expect.poll(async () => (await savedFarm(page)).resident_task_queues.man?.length ?? 0).toBeGreaterThan(0);
+  await page.locator(".interaction-tools").getByRole("button", { name: "Seed" }).click();
+  await page.locator(".interaction-tools").getByRole("menuitemradio", { name: /Wheat/ }).click();
+  for (const plot of ["plot-2", "plot-3"]) {
+    await page.getByLabel(`Field Plot ${plot}`, { exact: true }).click();
+  }
+  await expect.poll(async () => (await savedFarm(page)).resident_task_queues.man?.length ?? 0).toBe(3);
+  await expect(guidance).not.toContainText("Harvest deposited");
+  await page.clock.fastForward(60_000);
+  // Persist the elapsed real Farm through an ordinary Resident selection.
+  await page.getByLabel("Farm Residents").getByRole("button", { name: /Woman/ }).click();
+  const after = await savedFarm(page);
+  expect(after.resident_task_queues.man ?? []).toHaveLength(0);
+  expect(after.resident_task_queues.woman ?? []).toHaveLength(0);
+  expect(after.resident_inventories.man?.items.wheat ?? 0).toBe(0);
+  // Queued same-Resident work strips the unexecuted cleanup deposit and
+  // consumes both harvested Wheat directly; none reaches the Silo.
+  expect(after.inventory.wheat).toBe(5);
+  await expect(guidance).not.toContainText("Harvest deposited");
+  await page.reload();
+  await page.getByRole("button", { name: "Start Farm" }).click();
+  await expect(guidance).not.toContainText("Harvest deposited");
+});
+
 test("dismiss and resume help preserve the Farm and survive reload", async ({ page }) => {
   await newFarm(page);
   const guidance = page.getByRole("region", { name: "Farm guidance" });
