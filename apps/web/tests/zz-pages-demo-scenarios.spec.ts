@@ -88,7 +88,12 @@ test("pages demo harvests a ready Wheat Field Plot through the harvest interacti
   await selection.getByRole("button", { name: "Harvest" }).click();
 
   await expect(page.getByText("Command accepted")).toBeVisible();
-  await page.getByTestId("farm-scene-resident-woman").click();
+  // Inspect the queued task through the stationary Resident selector while the
+  // scene marker moves with the real-time Harvest task.
+  const woman = page.getByRole("region", { name: "Farm Residents" })
+    .getByRole("button", { name: /^Woman/ });
+  await woman.click();
+  await expect(woman).toHaveAttribute("aria-pressed", "true");
   const details = page.locator(".panel-section").filter({
     has: page.getByRole("heading", { name: "Resident Details" }),
   });
