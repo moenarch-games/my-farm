@@ -86,3 +86,19 @@ carried. An isolated Cargo target confirms this result; the full eight-case
 contract is 2 passing / 6 failing, with the other five failures still rejecting
 future shared-tool admission. This is a #171/#214 blocker, not an approved change
 to onboarding scope or a successful tool-reservation result.
+
+## Appending work preserves accepted physical promises
+
+The additional append case first admits Woman's two plantings and Man's later
+checkout, then appends Woman's fourth planting through normal Commands. Earlier
+queues and physical return steps must remain unchanged: cleanup optimization cannot
+extend Woman's custody across Man's already accepted checkout. The new checkout
+must follow Man's return; all four plantings must consume four real Wheat and
+finish with one conserved Hoe. Baseline rejection occurs while admitting Man,
+so these later assertions remain explicitly unexecuted until admission is repaired.
+
+A separate green legacy case removes the entire farmhouse tool-stock field from
+a fresh serialized Farm and verifies its original defaults. This distinguishes
+legitimate legacy absence from the modern checked-out-tool duplication above.
+The expanded isolated baseline is **3 passing / 7 failing** across ten cases;
+no production edits or new public interfaces accompany these tests.

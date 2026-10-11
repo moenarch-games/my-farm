@@ -316,3 +316,51 @@ fn reloading_an_actual_checked_out_tool_preserves_physical_stock() {
     assert_eq!(loaded.last_update_ms, farm.last_update_ms);
     finish(&mut loaded, &catalog, ToolKind::Hoe);
 }
+
+#[test]
+fn appending_work_cannot_remove_a_return_promised_to_another_resident() {
+    let catalog = CatalogDocument::default_catalog();
+    let mut farm = shared_planting(&catalog);
+    let earlier_woman = farm.resident_task_queues["woman"].clone();
+    let earlier_man = farm.resident_task_queues["man"].clone();
+    let promised_release = step_completion(earlier_woman.last().unwrap(), false);
+    let promised_checkout = step_completion(&earlier_man[0], true);
+    assert!(promised_checkout >= promised_release);
+
+    select(&mut farm, &catalog, "woman");
+    plant(&mut farm, &catalog, "plot-4");
+    assert_eq!(farm.resident_task_queues["man"], earlier_man);
+    assert_eq!(
+        &farm.resident_task_queues["woman"][..earlier_woman.len()],
+        earlier_woman.as_slice(),
+        "Appending work changed the physical return backing an accepted checkout"
+    );
+    let later_checkout = step_completion(farm.resident_task_queues["woman"].last().unwrap(), true);
+    let man_release = step_completion(earlier_man.last().unwrap(), false);
+    assert!(later_checkout >= man_release);
+    finish(&mut farm, &catalog, ToolKind::Hoe);
+    assert!(farm.field_plots[..4].iter().all(|plot| plot.crop.is_some()));
+    assert_eq!(
+        inventory_quantity(&farm, "wheat"),
+        inventory_quantity(&new_farm(0, &catalog), "wheat") - 4
+    );
+}
+
+#[test]
+fn legacy_missing_whole_tool_stock_retains_initial_defaults() {
+    let catalog = CatalogDocument::default_catalog();
+    let fresh = new_farm(0, &catalog);
+    let mut legacy = state(&fresh);
+    assert!(
+        legacy
+            .as_object_mut()
+            .unwrap()
+            .remove("farmhouse_tool_stock")
+            .is_some()
+    );
+    let loaded: FarmState = serde_json::from_value(legacy).unwrap();
+    assert_eq!(loaded.farmhouse_tool_stock, fresh.farmhouse_tool_stock);
+    assert_eq!(loaded.resident_inventories, fresh.resident_inventories);
+    conserved(&loaded, ToolKind::Hoe);
+    conserved(&loaded, ToolKind::Sickle);
+}
