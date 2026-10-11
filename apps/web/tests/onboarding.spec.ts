@@ -31,9 +31,11 @@ test("fresh guidance keeps gameplay usable and follows completed planting and de
   await page.getByLabel("Field Plot plot-1", { exact: true }).click({ force: true });
   await expect.poll(async () => (await savedFarm(page)).resident_task_queues.man?.length ?? 0).toBeGreaterThan(0);
   // Acceptance of a harvest is not evidence that its Deposit Step completed.
+  // Baseline new_farm starts 6 Wheat + 3 Corn; planting costs 1 Wheat
+  // and a completed Wheat harvest stores 2, so total Silo use becomes 10.
   await expect(guidance).not.toContainText("Harvest deposited");
   await page.clock.fastForward(60_000);
-  await expect(page.getByTestId("storage-summary-chip")).toHaveAttribute("aria-label", /Silo 11 of 40/);
+  await expect(page.getByTestId("storage-summary-chip")).toHaveAttribute("aria-label", /Silo 10 of 40/);
   await expect(guidance).toContainText("Harvest deposited");
   await expect(guidance).toContainText(/Oven|Bread/);
   expect(apiRequests).toEqual([]);
@@ -64,7 +66,7 @@ test("new Farm has fresh guidance even after the previous Farm dismissed it", as
   await page.getByRole("button", { name: "Menu", exact: true }).click();
   await page.getByRole("button", { name: "New Farm" }).click();
   await expect(page.getByRole("region", { name: "Farm guidance" })).toBeVisible();
-  expect((await savedFarm(page)).inventory.wheat).toBe(10);
+  expect((await savedFarm(page)).inventory.wheat).toBe(6);
 });
 
 test("phone guidance is dismissible and leaves scene controls reachable", async ({ page }) => {
