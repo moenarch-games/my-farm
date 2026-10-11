@@ -91,5 +91,5 @@ async function saved(page: Page): Promise<FarmState> {
 
 function totalHoes(farm: FarmState): number {
   return (farm.farmhouse_tool_stock.hoe ?? 0)
-    + Object.values(farm.resident_inventories).reduce((sum, inventory) => sum + (inventory.tools.hoe ?? 0), 0);
+    + Object.values(farm.resident_inventories).reduce((sum, inventory) => sum + (inventory?.tools.hoe ?? 0), 0);
 }
