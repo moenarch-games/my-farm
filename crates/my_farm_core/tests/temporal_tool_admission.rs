@@ -369,6 +369,10 @@ fn legacy_missing_whole_tool_stock_retains_initial_defaults() {
 fn a_blocked_holder_cannot_back_new_checkout_or_stop_unrelated_tool_work() {
     let catalog = CatalogDocument::default_catalog();
     let mut farm = new_farm(0, &catalog);
+    // Controlled progression input, using the same catalog threshold as core_loop.
+    farm.xp = catalog.level_xp[2];
+    farm.level = catalog.level_for_xp(farm.xp);
+    assert_eq!(farm.level, 2);
     plant(&mut farm, &catalog, "plot-1");
     assert_eq!(farm.resident_inventories["woman"].tools[&ToolKind::Hoe], 1);
     // Saved-state fault: the planting input disappears after admission. The
@@ -408,6 +412,10 @@ fn a_blocked_holder_cannot_back_new_checkout_or_stop_unrelated_tool_work() {
     assert!(
         !rejected.accepted,
         "Blocked holder has no backed return time"
+    );
+    assert_eq!(
+        rejected.error.as_ref().unwrap().message,
+        "required tool unavailable"
     );
     assert_eq!(state(&farm), before, "Rejected checkout mutated prior work");
 
@@ -494,11 +502,19 @@ fn unrepresentable_remaining_tool_timeline_rejects_new_work_atomically() {
         &catalog,
         FarmCommand::PlantCrop {
             plot_id: "plot-2".to_owned(),
-            crop_id: "corn".to_owned(),
+            crop_id: "wheat".to_owned(),
         },
         0,
     );
     assert!(!rejected.accepted);
+    assert!(
+        matches!(
+            rejected.error.as_ref().unwrap().message.as_str(),
+            "required tool unavailable" | "tool reservation timing overflow"
+        ),
+        "Wrong rejection: {:?}",
+        rejected.error
+    );
     assert_eq!(state(&farm), before);
     conserved(&farm, ToolKind::Hoe);
 }

@@ -150,3 +150,13 @@ The missing-queue test deliberately uses available, unlocked Wheat, with no bloc
 marker or vanished-input fault. Existing Corn-based rejection cases require a
 separate eligibility correction and re-verification; do not cite their green
 results as proof that tool admission was exercised.
+
+The follow-up protected correction exercises the blocked-holder case at a
+controlled, catalog-consistent level 2/XP threshold (existing core-loop fixture
+pattern), and requires `required tool unavailable`. The numeric-boundary case now
+uses unlocked, available Wheat and requires tool-unavailable or tool-timing-overflow
+failure. These are acceptance input corrections, not new progression defaults.
+Re-running all fourteen cases against unchanged `c461201` core yields thirteen
+green and one genuine RED: the missing-queue checkout is accepted. The corrected
+blocked-holder and numeric-boundary cases both pass. Later atomic-rejection and
+conservation assertions in the missing-queue case remain unexecuted until repair.
