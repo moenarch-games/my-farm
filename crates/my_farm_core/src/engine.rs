@@ -3901,6 +3901,7 @@ fn replan_resident_future_queue(
     scratch
         .resident_task_queues
         .insert(resident_id.to_owned(), vec![current_task]);
+    validate_tool_timing(&scratch)?;
 
     let mut planned_future_count = 0usize;
     for task in future_tasks {
@@ -3922,10 +3923,13 @@ fn replan_resident_future_queue(
         let steps = plan_resource_steps(&scratch, catalog, resident_id, base_steps)?;
         let steps = plan_resident_task_steps(&scratch, resident_id, steps)?;
         let ready_at_ms = started_at_ms
-            + steps
-                .first()
-                .map(resident_task_step_duration_ms)
-                .unwrap_or(0);
+            .checked_add(
+                steps
+                    .first()
+                    .map(resident_task_step_duration_ms)
+                    .unwrap_or(0),
+            )
+            .ok_or_else(|| CommandError::new("tool reservation timing overflow"))?;
         scratch
             .resident_task_queues
             .entry(resident_id.to_owned())
@@ -3938,6 +3942,24 @@ fn replan_resident_future_queue(
                 ready_at_ms,
             });
         planned_future_count += 1;
+        validate_tool_timing(&scratch)?;
+    }
+
+    // A reorder is a new admission choice, not an actual upstream delay. The
+    // existing calendar may move only this Resident's future work to make it fit.
+    reconcile_tool_times(&mut scratch)?;
+    for (other_resident, accepted_queue) in &farm.resident_task_queues {
+        let replanned = scratch.resident_task_queues.get(other_resident);
+        let preserved = if other_resident == resident_id {
+            replanned.and_then(|queue| queue.first()) == accepted_queue.first()
+        } else {
+            replanned == Some(accepted_queue)
+        };
+        if !preserved {
+            return Err(CommandError::new(
+                "reorder conflicts with an accepted tool commitment",
+            ));
+        }
     }
 
     scratch
