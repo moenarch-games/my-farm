@@ -21,14 +21,14 @@ test("fresh guidance keeps gameplay usable and follows completed planting and de
   await page.getByLabel("Farm Residents").getByRole("button", { name: /Man/ }).click();
   await page.locator(".interaction-tools").getByRole("button", { name: "Seed" }).click();
   await page.locator(".interaction-tools").getByRole("menuitemradio", { name: /Wheat/ }).click();
-  await page.getByLabel("Field Plot plot-1", { exact: true }).click({ force: true });
+  await page.getByLabel("Field Plot plot-1", { exact: true }).click();
   await expect.poll(async () => (await savedFarm(page)).resident_task_queues.man?.length ?? 0).toBeGreaterThan(0);
   await expect(guidance).not.toContainText(/Harvest deposited|Bread collected/);
   await page.clock.fastForward(60_000);
   await expect(page.getByLabel("Field Plot plot-1", { exact: true })).toHaveAttribute("data-wheat-appearance", "ready");
 
   await page.locator(".interaction-tools").getByRole("button", { name: "Harvest", exact: true }).click();
-  await page.getByLabel("Field Plot plot-1", { exact: true }).click({ force: true });
+  await page.getByLabel("Field Plot plot-1", { exact: true }).click();
   await expect.poll(async () => (await savedFarm(page)).resident_task_queues.man?.length ?? 0).toBeGreaterThan(0);
   // Acceptance of a harvest is not evidence that its Deposit Step completed.
   // Baseline new_farm starts 6 Wheat + 3 Corn; planting costs 1 Wheat
