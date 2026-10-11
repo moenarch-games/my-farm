@@ -423,3 +423,14 @@ fn elapsed_chunking_and_replayed_time_preserve_identical_receipt_and_farm() {
     assert!(apply_elapsed(&mut large, &catalog, end).is_empty());
     assert_eq!(large, before);
 }
+
+#[test]
+fn restored_farm_cannot_load_a_deposit_receipt_from_its_future() {
+    let catalog = CatalogDocument::default_catalog();
+    let (mut farm, _, _) = harvested(&catalog);
+    finish(&mut farm, &catalog);
+    let mut saved = serde_json::to_value(&farm).unwrap();
+    saved["resident_last_harvest_deposit"]["woman"]["completed_at_ms"] =
+        serde_json::json!(farm.last_update_ms + 1);
+    assert!(serde_json::from_value::<FarmState>(saved).is_err());
+}
