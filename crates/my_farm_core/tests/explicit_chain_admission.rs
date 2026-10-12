@@ -883,3 +883,72 @@ fn completed_historical_producer_cannot_relabel_new_unrelated_stored_wheat() {
     assert_eq!(inventory_quantity(&farm, "bread"), 2);
     assert_eq!(inventory_quantity(&farm, "wheat"), 0);
 }
+
+#[test]
+fn already_started_collection_cannot_create_bread_before_delayed_actual_oven_readiness() {
+    let catalog = CatalogDocument::default_catalog();
+    let mut farm = oven_farm(&catalog);
+    admit(&mut farm, &catalog, stored_chain("started-collector"));
+    advance_until(&mut farm, &catalog, |farm| {
+        farm.resident_inventories["man"]
+            .tools
+            .get(&my_farm_core::ToolKind::OvenMitt)
+            == Some(&1)
+    });
+    assert_eq!(inventory_quantity(&farm, "bread"), 0);
+    assert!(!farm.resident_inventories["man"].items.contains_key("bread"));
+    assert_eq!(farm.oven.queue[0].status, OvenJobStatus::Producing);
+    let task = &farm.resident_task_queues["man"][0];
+    let mut at = task.ready_at_ms;
+    let mut former_deadline = None;
+    for (index, step) in task.steps.iter().enumerate() {
+        if index > 0 {
+            at += step.duration_ms;
+        }
+        if matches!(step.work, ResidentTaskStepWork::CollectOvenJob { .. }) {
+            former_deadline = Some(at);
+            break;
+        }
+    }
+    let former_deadline = former_deadline.expect("actual accepted collection step");
+    assert!(former_deadline > farm.last_update_ms);
+    let actual_ready = former_deadline + 10_000;
+    // Controlled actual saved-state deadline delay, not an invented command,
+    // output or executor; all accepted steps and physical custody unchanged.
+    farm.oven.queue[0].ready_at_ms = actual_ready;
+    let mut restored: FarmState = serde_json::from_value(state(&farm)).unwrap();
+    apply_elapsed(&mut restored, &catalog, former_deadline);
+    assert_eq!(
+        inventory_quantity(&restored, "bread"),
+        0,
+        "premature Barn Bread"
+    );
+    assert!(
+        !restored.resident_inventories["man"]
+            .items
+            .contains_key("bread"),
+        "premature actual pickup"
+    );
+    assert_eq!(
+        restored.oven.queue.len(),
+        1,
+        "unready producing job removed"
+    );
+    assert_eq!(restored.oven.queue[0].status, OvenJobStatus::Producing);
+    assert_eq!(restored.oven.queue[0].ready_at_ms, actual_ready);
+    assert_eq!(
+        restored.resident_inventories["man"]
+            .tools
+            .get(&my_farm_core::ToolKind::OvenMitt),
+        Some(&1)
+    );
+    assert!(
+        restored.blocked_resident_tasks.is_empty(),
+        "ordinary delayed readiness is not blocked work"
+    );
+    conserved(&restored);
+    complete(&mut restored, &catalog);
+    assert!(restored.last_update_ms >= actual_ready);
+    assert_eq!(inventory_quantity(&restored, "bread"), 1);
+    assert_eq!(inventory_quantity(&restored, "wheat"), 3);
+}

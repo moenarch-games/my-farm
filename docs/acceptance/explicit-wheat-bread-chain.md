@@ -190,3 +190,24 @@ and /tmp/farm225-history-baseline.log. Original17 numerical protections remain;
 new two make19. Start/Collect aliases of one real Oven output require the same
 source-identity audit even though this frozen Bread recipe consumes Wheat rather
 than invented Bread-consuming catalogue content.
+
+
+## Independent already-started collector readiness regression
+
+New current-WIP test authored before readiness repair: actual admission and elapsed
+execution give the assigned Man the actual OvenMitt while the Oven is Producing
+and no Bread exists. Only the real saved Oven ready_at is delayed beyond the
+already committed Collect step's former deadline, then the Farm is reloaded.
+Former-deadline elapsed must not create carried/stored Bread or remove the
+producing job, lose custody or classify ordinary delay as blocked; later actual
+ready collection must still physically deposit one Bread. No fake output/task
+injection or new time budget. Actual baseline RED at premature carried Bread,
+not an unexecuted helper/API check; remaining repair assertions UNRUN. Log:
+/tmp/farm225-started-collector-baseline.log. Protected chain total now20.
+
+Mechanical typed fixtures retain all values/assertions: populated chain-map fixture
+uses satisfies FarmView[concrete_chains] to preserve the source discriminator;
+existing current-view app/legacy-stop fixtures receive empty concrete_chains only.
+The intentional old-chain fixture still omits this field. Both client protections
+(2chain+4stop) execute6PASS against current WIP; no casts or runtime normalization
+hacks were used to fit changed generated types.
