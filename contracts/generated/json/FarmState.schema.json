@@ -1710,6 +1710,10 @@
           "items": {
             "$ref": "#/$defs/ResidentTaskStep"
           }
+        },
+        "stop_requested": {
+          "type": "boolean",
+          "default": false
         }
       },
       "required": [

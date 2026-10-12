@@ -404,6 +404,26 @@
           "properties": {
             "type": {
               "type": "string",
+              "const": "cancel_resident_task"
+            },
+            "resident_id": {
+              "type": "string"
+            },
+            "task_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "resident_id",
+            "task_id"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
               "const": "reorder_resident_task"
             },
             "before_task_id": {

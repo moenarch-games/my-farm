@@ -114,6 +114,10 @@ pub enum FarmCommand {
     SelectResident {
         resident_id: String,
     },
+    CancelResidentTask {
+        resident_id: String,
+        task_id: String,
+    },
     ReorderResidentTask {
         resident_id: String,
         task_id: String,
@@ -420,6 +424,10 @@ pub fn apply_command(
             discard_inventory(farm, &item_id, quantity)
         }
         FarmCommand::SelectResident { resident_id } => select_resident(farm, &resident_id),
+        FarmCommand::CancelResidentTask {
+            resident_id,
+            task_id,
+        } => cancel_resident_task(farm, catalog, &resident_id, &task_id),
         FarmCommand::ReorderResidentTask {
             resident_id,
             task_id,
@@ -1111,6 +1119,10 @@ fn strip_trailing_cleanup_steps(farm: &mut FarmState, resident_id: &str) {
         return;
     };
 
+    if task.stop_requested {
+        return;
+    }
+
     while task.steps.last().is_some_and(|step| {
         matches!(
             step.work,
@@ -1174,6 +1186,7 @@ fn ensure_idle_cleanup_tasks(farm: &mut FarmState, catalog: &CatalogDocument, no
             .entry(resident_id)
             .or_default()
             .push(ResidentTask {
+                stop_requested: false,
                 id: task_id,
                 kind: ResidentTaskKind::FieldWork,
                 steps,
@@ -1797,6 +1810,7 @@ fn earliest_tool_start(
             .or_default();
         queue.retain(|task| task.id != id);
         queue.push(ResidentTask {
+            stop_requested: false,
             id: id.clone(),
             kind: ResidentTaskKind::FieldWork,
             steps: steps.to_vec(),
@@ -1948,6 +1962,7 @@ fn reserved_target_for_storage_source(source: &StorageSourceRef) -> ReservedWork
 
 fn push_planned_resident_work(farm: &mut FarmState, planned: PlannedResidentWork) {
     let task = ResidentTask {
+        stop_requested: false,
         id: next_id(farm, "task"),
         kind: planned.kind,
         steps: planned.steps,
@@ -2314,6 +2329,7 @@ fn complete_resident_tasks(
         match complete_resident_task_step(farm, catalog, &resident, &task_id, step, at) {
             Ok(step_events) => {
                 pop_ready_resident_task_step(farm, &resident, now_ms);
+                ensure_idle_cleanup_tasks(farm, catalog, at);
                 farm.blocked_resident_tasks.remove(&resident);
                 events.extend(step_events);
                 failed.clear();
@@ -2419,6 +2435,29 @@ fn complete_resident_task_step(
     step: ResidentTaskStep,
     completed_at_ms: i64,
 ) -> Result<Vec<FarmEvent>, ResidentTaskBlock> {
+    // Physical cleanup cannot credit inventory through an obsolete saved route
+    // or overfill storage. Keep custody and the Step intact for ordinary retry.
+    let stopped = farm
+        .resident_task_queues
+        .get(resident_id)
+        .and_then(|queue| queue.first())
+        .is_some_and(|task| task.stop_requested);
+    if stopped
+        && matches!(
+            step.work,
+            ResidentTaskStepWork::DepositItems { .. } | ResidentTaskStepWork::ReturnTools { .. }
+        )
+        && !work_target_candidates(farm, &step).is_some_and(|tiles| {
+            step.approach_tile
+                .as_ref()
+                .is_some_and(|tile| tiles.contains(tile) && is_walkable_tile(farm, tile))
+        })
+    {
+        return Err(ResidentTaskBlock::new(
+            "target_unreachable",
+            "physical cleanup target is unreachable",
+        ));
+    }
     match step.work {
         ResidentTaskStepWork::PickupItems { items, .. } => {
             remove_inventory(farm, &items)
@@ -2725,6 +2764,12 @@ fn complete_resident_task_step(
             Ok(Vec::new())
         }
         ResidentTaskStepWork::DepositItems { destination, items } => {
+            if stopped && !has_storage_room(farm, catalog, &items, (0, 0)) {
+                return Err(ResidentTaskBlock::new(
+                    "storage_full",
+                    "storage capacity is full for physical deposit",
+                ));
+            }
             let harvested = remove_resident_items(farm, resident_id, &items)
                 .map_err(|error| ResidentTaskBlock::new("missing_carried_items", error.message))?;
             for item in items {
@@ -3046,6 +3091,15 @@ fn has_storage_room_after_reservations(
     catalog: &CatalogDocument,
     stacks: &[ItemStack],
 ) -> bool {
+    has_storage_room(farm, catalog, stacks, reserved_storage(farm, catalog))
+}
+
+fn has_storage_room(
+    farm: &FarmState,
+    catalog: &CatalogDocument,
+    stacks: &[ItemStack],
+    (reserved_crop, reserved_barn): (u32, u32),
+) -> bool {
     let crop_add = stacks
         .iter()
         .filter(|stack| {
@@ -3053,8 +3107,8 @@ fn has_storage_room_after_reservations(
                 .item_kind(&stack.item_id)
                 .is_some_and(|kind| *kind == ItemKind::Crop)
         })
-        .map(|stack| stack.quantity)
-        .sum::<u32>();
+        .map(|stack| u64::from(stack.quantity))
+        .sum::<u64>();
     let barn_add = stacks
         .iter()
         .filter(|stack| {
@@ -3062,12 +3116,12 @@ fn has_storage_room_after_reservations(
                 .item_kind(&stack.item_id)
                 .is_some_and(|kind| *kind == ItemKind::Crop)
         })
-        .map(|stack| stack.quantity)
-        .sum::<u32>();
-    let (reserved_crop, reserved_barn) = reserved_storage(farm, catalog);
-
-    crop_storage_used(farm, catalog) + reserved_crop + crop_add <= farm.silo_capacity
-        && barn_storage_used(farm, catalog) + reserved_barn + barn_add <= farm.barn_capacity
+        .map(|stack| u64::from(stack.quantity))
+        .sum::<u64>();
+    u64::from(crop_storage_used(farm, catalog)) + u64::from(reserved_crop) + crop_add
+        <= u64::from(farm.silo_capacity)
+        && u64::from(barn_storage_used(farm, catalog)) + u64::from(reserved_barn) + barn_add
+            <= u64::from(farm.barn_capacity)
 }
 
 fn reserved_storage(farm: &FarmState, catalog: &CatalogDocument) -> (u32, u32) {
@@ -3826,6 +3880,124 @@ fn select_resident(
     }])
 }
 
+/// Stop is a new admission decision: execute the current Step unchanged, then
+/// keep only physical cleanup. Scratch planning protects other accepted work.
+fn cancel_resident_task(
+    farm: &mut FarmState,
+    catalog: &CatalogDocument,
+    resident_id: &str,
+    task_id: &str,
+) -> Result<Vec<FarmEvent>, CommandError> {
+    find_resident_index(farm, resident_id)?;
+    let queue = farm
+        .resident_task_queues
+        .get(resident_id)
+        .ok_or_else(|| CommandError::new("resident task not found"))?;
+    let index = queue
+        .iter()
+        .position(|task| task.id == task_id)
+        .ok_or_else(|| CommandError::new("resident task not found"))?;
+    if queue[index].steps.is_empty() {
+        return Err(CommandError::new("resident task has no remaining step"));
+    }
+    if queue[index].stop_requested {
+        return Ok(Vec::new());
+    }
+    let mut scratch = farm.clone();
+    let active = index == 0 && queue[index].started_at_ms <= farm.last_update_ms;
+    let removed_steps = if active {
+        queue[index].steps[1..].to_vec()
+    } else {
+        queue[index].steps.clone()
+    };
+    let cancelled_jobs = removed_steps
+        .iter()
+        .filter_map(|step| match &step.work {
+            ResidentTaskStepWork::StartOvenRecipe { job_id, .. } => Some(job_id.as_str()),
+            _ => None,
+        })
+        .collect::<BTreeSet<_>>();
+    scratch.oven.queue.retain(|job| {
+        job.status != OvenJobStatus::PendingStart || !cancelled_jobs.contains(job.id.as_str())
+    });
+    let mut retained = queue.clone();
+    if active {
+        retained[0].steps.truncate(1);
+        retained[0].stop_requested = true;
+        scratch
+            .resident_task_queues
+            .insert(resident_id.to_owned(), vec![retained[0].clone()]);
+        let mut projected = projected_resident_inventory(&scratch, catalog, resident_id);
+        let mut cleanup = deposit_all_carried_items(catalog, &mut projected);
+        cleanup.extend(return_all_carried_tools(&scratch, &mut projected));
+        let cleanup = plan_resident_task_steps(&scratch, resident_id, cleanup)?;
+        retained[0].steps.extend(cleanup);
+    } else {
+        retained.remove(index);
+    }
+    scratch
+        .resident_task_queues
+        .insert(resident_id.to_owned(), retained.clone());
+    if !retained.is_empty() && (!active && index == 0 || retained.len() > 1) {
+        let preserve_current = active || index > 0;
+        let following = if preserve_current {
+            retained[1..].to_vec()
+        } else {
+            retained.clone()
+        };
+        let replanned =
+            replan_resident_queue(&scratch, catalog, resident_id, following, preserve_current)
+                .map_err(|error| {
+                    CommandError::new(format!(
+                        "stop conflicts with accepted following inputs or tool reservation: {}",
+                        error.message
+                    ))
+                })?;
+        scratch
+            .resident_task_queues
+            .insert(resident_id.to_owned(), replanned);
+    }
+    validate_tool_timing(&scratch)?;
+    reconcile_tool_times(&mut scratch)?;
+    for (other, accepted) in &farm.resident_task_queues {
+        if other != resident_id && scratch.resident_task_queues.get(other) != Some(accepted) {
+            return Err(CommandError::new(
+                "stop conflicts with an accepted tool commitment",
+            ));
+        }
+    }
+    if active {
+        let current = scratch
+            .resident_task_queues
+            .get(resident_id)
+            .and_then(|tasks| tasks.first());
+        if !current.is_some_and(|task| {
+            task.id == queue[0].id
+                && task.started_at_ms == queue[0].started_at_ms
+                && task.ready_at_ms == queue[0].ready_at_ms
+                && task.steps.first() == queue[0].steps.first()
+        }) {
+            return Err(CommandError::new(
+                "stop conflicts with the active accepted step",
+            ));
+        }
+    }
+    if !active
+        && index > 0
+        && scratch
+            .resident_task_queues
+            .get(resident_id)
+            .and_then(|q| q.first())
+            != queue.first()
+    {
+        return Err(CommandError::new(
+            "stop conflicts with the active accepted step",
+        ));
+    }
+    *farm = scratch;
+    Ok(Vec::new())
+}
+
 fn reorder_resident_task(
     farm: &mut FarmState,
     catalog: &CatalogDocument,
@@ -3888,6 +4060,16 @@ fn replan_resident_future_queue(
     resident_id: &str,
     future_tasks: Vec<ResidentTask>,
 ) -> Result<Vec<ResidentTask>, CommandError> {
+    replan_resident_queue(farm, catalog, resident_id, future_tasks, true)
+}
+
+fn replan_resident_queue(
+    farm: &FarmState,
+    catalog: &CatalogDocument,
+    resident_id: &str,
+    future_tasks: Vec<ResidentTask>,
+    preserve_current: bool,
+) -> Result<Vec<ResidentTask>, CommandError> {
     let original_queue = farm
         .resident_task_queues
         .get(resident_id)
@@ -3898,13 +4080,17 @@ fn replan_resident_future_queue(
         .ok_or_else(|| CommandError::new("current resident task not found"))?;
 
     let mut scratch = farm.clone();
-    scratch
-        .resident_task_queues
-        .insert(resident_id.to_owned(), vec![current_task]);
+    scratch.resident_task_queues.insert(
+        resident_id.to_owned(),
+        if preserve_current {
+            vec![current_task]
+        } else {
+            Vec::new()
+        },
+    );
     validate_tool_timing(&scratch)?;
 
-    let mut planned_future_count = 0usize;
-    for task in future_tasks {
+    for (planned_future_count, task) in future_tasks.into_iter().enumerate() {
         let base_steps = resident_task_reorder_work_steps(&task);
         if base_steps.is_empty() {
             return Err(CommandError::new("resident task has no reorderable work"));
@@ -3935,13 +4121,13 @@ fn replan_resident_future_queue(
             .entry(resident_id.to_owned())
             .or_default()
             .push(ResidentTask {
+                stop_requested: false,
                 id: task.id,
                 kind: task.kind,
                 steps,
                 started_at_ms,
                 ready_at_ms,
             });
-        planned_future_count += 1;
         validate_tool_timing(&scratch)?;
     }
 
@@ -3951,7 +4137,7 @@ fn replan_resident_future_queue(
     for (other_resident, accepted_queue) in &farm.resident_task_queues {
         let replanned = scratch.resident_task_queues.get(other_resident);
         let preserved = if other_resident == resident_id {
-            replanned.and_then(|queue| queue.first()) == accepted_queue.first()
+            !preserve_current || replanned.and_then(|queue| queue.first()) == accepted_queue.first()
         } else {
             replanned == Some(accepted_queue)
         };

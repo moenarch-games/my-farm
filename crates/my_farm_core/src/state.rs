@@ -448,6 +448,8 @@ pub struct ResidentInventory {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, PartialEq, Eq)]
 pub struct ResidentTask {
+    #[serde(default)]
+    pub stop_requested: bool,
     pub id: String,
     pub kind: ResidentTaskKind,
     pub steps: Vec<ResidentTaskStep>,

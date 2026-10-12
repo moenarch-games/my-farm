@@ -1476,6 +1476,10 @@
         "state": {
           "$ref": "#/$defs/ResidentWorkState"
         },
+        "stop_requested": {
+          "type": "boolean",
+          "default": false
+        },
         "target": {
           "anyOf": [
             {
