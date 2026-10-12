@@ -1,3 +1,5 @@
+mod concrete_chain;
+
 use crate::{
     AnimalShelterState, AnimalState, CatalogDocument, DecorationDef, DecorationPlacement,
     DeliveryOrder, FarmShopRejectionWindow, FarmShopSaleWindow, FarmShopState, FarmState,
@@ -48,6 +50,10 @@ struct StructureFootprint {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum FarmCommand {
+    AdmitConcreteChain {
+        chain_id: String,
+        jobs: Vec<crate::ConcreteJobRequest>,
+    },
     PlantCrop {
         plot_id: String,
         crop_id: String,
@@ -366,6 +372,9 @@ pub fn apply_command(
     let elapsed_events = apply_elapsed(farm, catalog, now_ms);
     let previous_level = farm.level;
     let result = match command {
+        FarmCommand::AdmitConcreteChain { chain_id, jobs } => {
+            concrete_chain::admit(farm, catalog, &chain_id, &jobs)
+        }
         FarmCommand::PlantCrop { plot_id, crop_id } => {
             plant_crop(farm, catalog, now_ms, &plot_id, &crop_id)
         }
@@ -776,10 +785,13 @@ fn plan_resident_work(
         earliest_tool_start(farm_plan, &selected_resident_id, &steps, started_at_ms)?;
     farm.resident_task_queues = scratch.resident_task_queues;
     let ready_at_ms = started_at_ms
-        + steps
-            .first()
-            .map(resident_task_step_duration_ms)
-            .unwrap_or(0);
+        .checked_add(
+            steps
+                .first()
+                .map(resident_task_step_duration_ms)
+                .unwrap_or(0),
+        )
+        .ok_or_else(|| CommandError::new("task time overflow"))?;
 
     Ok(PlannedResidentWork {
         resident_id: selected_resident_id,
@@ -839,7 +851,7 @@ fn plan_resource_steps(
         }
         append_steps_with_cursor(farm, &mut planned, &mut previous_tile, pickup_steps)?;
 
-        let outputs = step_inventory_outputs(catalog, &work_step.work);
+        let outputs = step_inventory_outputs(farm, catalog, &work_step.work);
         if carried_item_quantity(&projected.items) + stack_quantity(&outputs)
             > projected.item_capacity
             && !projected.items.is_empty()
@@ -1102,6 +1114,16 @@ fn pickup_inputs_for_remaining_work(
 }
 
 fn strip_trailing_cleanup_steps(farm: &mut FarmState, resident_id: &str) {
+    // A physical producer delivery is part of an accepted dependency promise.
+    if farm
+        .resident_task_queues
+        .get(resident_id)
+        .and_then(|queue| queue.last())
+        .is_some_and(|task| concrete_chain::required_task(farm, resident_id, &task.id))
+    {
+        return;
+    }
+
     // A physical return already backing another Resident commitment is immutable.
     if farm.resident_task_queues.iter().any(|(other, queue)| {
         other != resident_id
@@ -1284,7 +1306,7 @@ fn apply_projected_step(
         other => {
             let inputs = step_inventory_inputs(farm, catalog, step)?;
             remove_projected_items(&mut projected.items, &inputs)?;
-            let outputs = step_inventory_outputs(catalog, other);
+            let outputs = step_inventory_outputs(farm, catalog, other);
             add_projected_items(&mut projected.items, &outputs);
         }
     }
@@ -1297,6 +1319,11 @@ fn step_inventory_inputs(
     step: &ResidentTaskStep,
 ) -> Result<Vec<ItemStack>, CommandError> {
     let inputs = match &step.work {
+        ResidentTaskStepWork::StartOvenRecipe { job_id, recipe_id } => {
+            concrete_chain::recipe(farm, catalog, job_id, recipe_id)
+                .map(|recipe| recipe.inputs)
+                .unwrap_or_default()
+        }
         ResidentTaskStepWork::FeedAnimal => {
             let ReservedWorkTarget::Animal { shelter_id, .. } = &step.reserved_work_target else {
                 return Ok(Vec::new());
@@ -1355,7 +1382,9 @@ fn missing_projected_items(
 }
 
 fn available_stored_quantity(farm: &FarmState, item_id: &str) -> u32 {
-    inventory_quantity(farm, item_id).saturating_sub(reserved_item_pickups(farm, item_id))
+    let reserved = reserved_item_pickups(farm, item_id)
+        .saturating_sub(concrete_chain::unproduced_pickups(farm, item_id));
+    inventory_quantity(farm, item_id).saturating_sub(reserved)
 }
 
 fn reserved_item_pickups(farm: &FarmState, item_id: &str) -> u32 {
@@ -2304,6 +2333,7 @@ fn complete_resident_tasks(
     loop {
         // Malformed timing must not stop unrelated accepted work. Physical
         // pickup checks below still prevent stealing held Tools.
+        let _ = concrete_chain::reconcile(farm);
         let _ = reconcile_tool_times(farm);
         // The existing executor advances the earliest ready head across Residents.
         // At a shared instant a physical return precedes a dependent checkout.
@@ -2387,6 +2417,16 @@ fn ready_resident_task_step(
                         && inventory.tools.get(&stack.tool_kind).copied().unwrap_or(0) > 0
                 })
         }) {
+            return None;
+        }
+    }
+    if let Some(ResidentTaskStep {
+        work: ResidentTaskStepWork::CollectOvenJob { job_id, .. },
+        ..
+    }) = task.steps.first()
+    {
+        let job = farm.oven.queue.iter().find(|job| job.id == *job_id)?;
+        if job.status != OvenJobStatus::Producing || job.ready_at_ms > task.ready_at_ms {
             return None;
         }
     }
@@ -2515,7 +2555,12 @@ fn complete_resident_task_step(
                     "field plot is already planted",
                 ));
             }
-            let Some(crop) = catalog.crop(&crop_id) else {
+            let accepted_terms = concrete_chain::crop_terms(farm, task_id);
+            let Some(crop) = accepted_terms
+                .as_ref()
+                .map(|terms| &terms.crop)
+                .or_else(|| catalog.crop(&crop_id))
+            else {
                 return Err(ResidentTaskBlock::new("unknown_crop", "crop is unknown"));
             };
             remove_resident_items(farm, resident_id, &[ItemStack::new(&crop_id, 1)])
@@ -2524,7 +2569,12 @@ fn complete_resident_task_step(
                 item_id: crop_id.clone(),
                 planted_at_ms: completed_at_ms,
                 ready_at_ms: completed_at_ms
-                    + scaled_duration_ms(crop.reference_seconds, catalog.balance.time_scale),
+                    + accepted_terms
+                        .as_ref()
+                        .map(|terms| terms.duration_ms)
+                        .unwrap_or_else(|| {
+                            scaled_duration_ms(crop.reference_seconds, catalog.balance.time_scale)
+                        }),
             });
             Ok(vec![FarmEvent::CropPlanted { crop_id }])
         }
@@ -2561,7 +2611,10 @@ fn complete_resident_task_step(
                     });
                 }
             }
-            if let Some(crop) = catalog.crop(&crop_id) {
+            if let Some(crop) = concrete_chain::crop_terms(farm, task_id)
+                .map(|terms| terms.crop)
+                .or_else(|| catalog.crop(&crop_id).cloned())
+            {
                 gain_xp(farm, catalog, crop.xp);
             }
             Ok(vec![FarmEvent::CropHarvested { crop_id, quantity }])
@@ -2625,7 +2678,7 @@ fn complete_resident_task_step(
                     "oven job is not pending start",
                 ));
             }
-            let Some(recipe) = catalog.recipe(&recipe_id) else {
+            let Some(recipe) = concrete_chain::recipe(farm, catalog, &job_id, &recipe_id) else {
                 return Err(ResidentTaskBlock::new(
                     "unknown_recipe",
                     "recipe is unknown",
@@ -2635,8 +2688,8 @@ fn complete_resident_task_step(
                 .map_err(|error| ResidentTaskBlock::new("missing_carried_items", error.message))?;
             farm.oven.queue[job_index].status = OvenJobStatus::Producing;
             farm.oven.queue[job_index].started_at_ms = completed_at_ms;
-            farm.oven.queue[job_index].ready_at_ms = completed_at_ms
-                + scaled_duration_ms(recipe.reference_seconds, catalog.balance.time_scale);
+            farm.oven.queue[job_index].ready_at_ms =
+                completed_at_ms + concrete_chain::duration(farm, catalog, &job_id, &recipe);
             Ok(Vec::new())
         }
         ResidentTaskStepWork::CollectOvenJob { job_id, recipe_id } => {
@@ -2652,13 +2705,21 @@ fn complete_resident_task_step(
                     "oven job no longer exists",
                 ));
             };
-            farm.oven.queue.remove(job_index);
-            let Some(recipe) = catalog.recipe(&recipe_id) else {
+            if farm.oven.queue[job_index].status != OvenJobStatus::Producing
+                || farm.oven.queue[job_index].ready_at_ms > completed_at_ms
+            {
+                return Err(ResidentTaskBlock::new(
+                    "job_unavailable",
+                    "Oven output is not ready",
+                ));
+            }
+            let Some(recipe) = concrete_chain::recipe(farm, catalog, &job_id, &recipe_id) else {
                 return Err(ResidentTaskBlock::new(
                     "unknown_recipe",
                     "recipe is unknown",
                 ));
             };
+            farm.oven.queue.remove(job_index);
             add_resident_items(farm, resident_id, &recipe.outputs);
             gain_xp(farm, catalog, recipe.xp);
             Ok(vec![FarmEvent::MachineJobCollected {
@@ -2976,15 +3037,20 @@ fn tool_source_stock_mut<'a>(
 }
 
 fn step_inventory_outputs(
+    farm: &FarmState,
     catalog: &CatalogDocument,
     work: &ResidentTaskStepWork,
 ) -> Vec<ItemStack> {
     match work {
+        ResidentTaskStepWork::CollectOvenJob { job_id, recipe_id } => {
+            concrete_chain::recipe(farm, catalog, job_id, recipe_id)
+                .map(|recipe| recipe.outputs)
+                .unwrap_or_default()
+        }
         ResidentTaskStepWork::HarvestCrop { crop_id, quantity } => {
             vec![ItemStack::new(crop_id, *quantity)]
         }
-        ResidentTaskStepWork::CollectMachineJob { recipe_id, .. }
-        | ResidentTaskStepWork::CollectOvenJob { recipe_id, .. } => catalog
+        ResidentTaskStepWork::CollectMachineJob { recipe_id, .. } => catalog
             .recipe(recipe_id)
             .map(|recipe| recipe.outputs.clone())
             .unwrap_or_default(),
@@ -3137,7 +3203,7 @@ fn reserved_storage(farm: &FarmState, catalog: &CatalogDocument) -> (u32, u32) {
                     }
                     ResidentTaskStepWork::DepositItems { items, .. } => items.clone(),
                     _ => {
-                        let outputs = step_inventory_outputs(catalog, &step.work);
+                        let outputs = step_inventory_outputs(farm, catalog, &step.work);
                         if outputs.is_empty()
                             || step_outputs_have_following_deposits(
                                 catalog, queue, task_index, step_index, &outputs,
@@ -3566,6 +3632,9 @@ fn queue_recipe(
     if farm.machines[machine_index].queue.len() >= machine_def.queue_limit {
         return Err(CommandError::new("machine queue is full"));
     }
+    for input in &recipe.inputs {
+        protect_concrete_stock(farm, &input.item_id, input.quantity)?;
+    }
     remove_inventory(farm, &recipe.inputs)?;
     let start_at = farm.machines[machine_index]
         .queue
@@ -3826,6 +3895,9 @@ fn fulfill_delivery_order(
         .position(|order| order.id == order_id)
         .ok_or_else(|| CommandError::new("delivery order not found"))?;
     let order = farm.delivery_orders[index].clone();
+    for requirement in &order.requirements {
+        protect_concrete_stock(farm, &requirement.item_id, requirement.quantity)?;
+    }
     remove_inventory(farm, &order.requirements)?;
     farm.delivery_orders.remove(index);
     farm.coins += order.reward_coins;
@@ -3862,6 +3934,7 @@ fn discard_inventory(
         return Err(CommandError::new("quantity must be greater than zero"));
     }
 
+    protect_concrete_stock(farm, item_id, quantity)?;
     remove_inventory(farm, &[ItemStack::new(item_id, quantity)])?;
     Ok(vec![FarmEvent::InventoryDiscarded {
         item_id: item_id.to_owned(),
@@ -3889,6 +3962,11 @@ fn cancel_resident_task(
     task_id: &str,
 ) -> Result<Vec<FarmEvent>, CommandError> {
     find_resident_index(farm, resident_id)?;
+    if concrete_chain::required_task(farm, resident_id, task_id) {
+        return Err(CommandError::new(
+            "task has an accepted concrete dependency",
+        ));
+    }
     let queue = farm
         .resident_task_queues
         .get(resident_id)
@@ -3917,6 +3995,7 @@ fn cancel_resident_task(
             _ => None,
         })
         .collect::<BTreeSet<_>>();
+    concrete_chain::release_removed_inputs(&mut scratch, resident_id, task_id, &removed_steps);
     scratch.oven.queue.retain(|job| {
         job.status != OvenJobStatus::PendingStart || !cancelled_jobs.contains(job.id.as_str())
     });
@@ -4258,6 +4337,7 @@ fn sell_market_item(
     let coins_gained = unit_price
         .checked_mul(quantity)
         .ok_or_else(|| CommandError::new("market price overflow"))?;
+    protect_concrete_stock(farm, item_id, quantity)?;
     remove_inventory(farm, &[ItemStack::new(item_id, quantity)])?;
     farm.coins += coins_gained;
     Ok(vec![FarmEvent::MarketItemSold {
@@ -5354,4 +5434,16 @@ fn ignores_tool_shed(ignore_target: Option<&StructureTarget>, tool_shed_id: &str
 
 fn ignores_farm_shop(ignore_target: Option<&StructureTarget>, shop_id: &str) -> bool {
     matches!(ignore_target, Some(StructureTarget::FarmShop { id }) if id == shop_id)
+}
+
+fn protect_concrete_stock(farm: &FarmState, item: &str, quantity: u32) -> Result<(), CommandError> {
+    let stored = inventory_quantity(farm, item);
+    if quantity <= stored
+        && stored.saturating_sub(concrete_chain::physically_reserved_pickups(farm, item)) < quantity
+    {
+        return Err(CommandError::new(
+            "item quantity is reserved for accepted work",
+        ));
+    }
+    Ok(())
 }

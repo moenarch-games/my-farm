@@ -170,7 +170,8 @@ pub fn demo_catalog() -> CatalogDocument {
 
 fn unsupported_demo_command<'a>(_farm: &FarmState, command: &'a FarmCommand) -> Option<&'a str> {
     match command {
-        FarmCommand::PlantCrop { .. }
+        FarmCommand::AdmitConcreteChain { .. }
+        | FarmCommand::PlantCrop { .. }
         | FarmCommand::SweepPlant { .. }
         | FarmCommand::HarvestCrop { .. }
         | FarmCommand::SweepHarvest { .. }

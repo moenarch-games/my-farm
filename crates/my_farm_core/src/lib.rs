@@ -1,6 +1,7 @@
 mod api;
 pub mod application;
 mod catalog;
+mod concrete_chain;
 mod domain;
 mod engine;
 mod state;
@@ -9,6 +10,7 @@ mod view;
 pub use api::*;
 pub use application::{execute_command, query_farm};
 pub use catalog::*;
+pub use concrete_chain::*;
 pub use engine::{
     CommandError, CommandOutcome, FARM_SHOP_ITEM_TYPE_CAPACITY, FarmCommand, FarmEvent,
     StructureTarget, SweepHarvestMode, apply_elapsed, available_farm_shop_stock_quantity,

@@ -83,6 +83,8 @@ pub struct FarmState {
     pub house_interior: HouseInterior,
     #[ts(type = "number")]
     pub next_id: u64,
+    #[serde(default)]
+    pub concrete_chains: BTreeMap<String, crate::ConcreteChain>,
 }
 
 impl<'de> Deserialize<'de> for FarmState {
@@ -152,6 +154,8 @@ struct FarmStateSerde {
     #[serde(default = "default_house_interior")]
     house_interior: HouseInterior,
     next_id: u64,
+    #[serde(default)]
+    concrete_chains: BTreeMap<String, crate::ConcreteChain>,
 }
 
 impl FarmStateSerde {
@@ -208,6 +212,7 @@ impl FarmStateSerde {
             resident_last_harvest_deposit: self.resident_last_harvest_deposit,
             house_interior: self.house_interior,
             next_id: self.next_id,
+            concrete_chains: self.concrete_chains,
         };
 
         ensure_resident_locations(&mut farm);
@@ -761,6 +766,7 @@ pub fn new_farm(now_ms: i64, catalog: &CatalogDocument) -> FarmState {
         resident_last_harvest_deposit: BTreeMap::new(),
         house_interior: default_house_interior(),
         next_id: 1,
+        concrete_chains: BTreeMap::new(),
     };
     update_level(&mut farm, catalog);
     farm

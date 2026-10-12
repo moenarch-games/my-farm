@@ -43,6 +43,13 @@
       "format": "uint32",
       "minimum": 0
     },
+    "concrete_chains": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/ConcreteChain"
+      },
+      "default": {}
+    },
     "delivery_board_built": {
       "type": "boolean"
     },
@@ -1079,6 +1086,317 @@
         "message"
       ]
     },
+    "ConcreteChain": {
+      "type": "object",
+      "properties": {
+        "jobs": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/ConcreteJob"
+          }
+        }
+      },
+      "required": [
+        "jobs"
+      ]
+    },
+    "ConcreteCropTerms": {
+      "type": "object",
+      "properties": {
+        "crop": {
+          "$ref": "#/$defs/CropDef"
+        },
+        "duration_ms": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "required": [
+        "crop",
+        "duration_ms"
+      ]
+    },
+    "ConcreteInput": {
+      "type": "object",
+      "properties": {
+        "item_id": {
+          "type": "string"
+        },
+        "quantity": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "source": {
+          "$ref": "#/$defs/ConcreteInputSource"
+        }
+      },
+      "required": [
+        "item_id",
+        "quantity",
+        "source"
+      ]
+    },
+    "ConcreteInputSource": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "stored"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "producer_output"
+            },
+            "chain_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "job_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "job_id"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "committed_task_output"
+            },
+            "resident_id": {
+              "type": "string"
+            },
+            "task_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "resident_id",
+            "task_id"
+          ]
+        }
+      ]
+    },
+    "ConcreteJob": {
+      "type": "object",
+      "properties": {
+        "after": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "crop_terms": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConcreteCropTerms"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "initial_step_count": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "input_claims_released": {
+          "type": "boolean",
+          "default": false
+        },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ConcreteInput"
+          }
+        },
+        "outputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ItemStack"
+          }
+        },
+        "production_job_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "recipe_terms": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ConcreteRecipeTerms"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "resident_id": {
+          "type": "string"
+        },
+        "task_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "work": {
+          "$ref": "#/$defs/ConcreteWork"
+        }
+      },
+      "required": [
+        "resident_id",
+        "after",
+        "inputs",
+        "task_ids",
+        "work",
+        "initial_step_count",
+        "outputs"
+      ]
+    },
+    "ConcreteRecipeTerms": {
+      "type": "object",
+      "properties": {
+        "duration_ms": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "recipe": {
+          "$ref": "#/$defs/RecipeDef"
+        }
+      },
+      "required": [
+        "recipe",
+        "duration_ms"
+      ]
+    },
+    "ConcreteWork": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "plant_crop"
+            },
+            "crop_id": {
+              "type": "string"
+            },
+            "plot_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "plot_id",
+            "crop_id"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "harvest_crop"
+            },
+            "plot_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "plot_id"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "start_oven_recipe"
+            },
+            "recipe_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "recipe_id"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "collect_oven_job"
+            },
+            "producer_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "producer_id"
+          ]
+        }
+      ]
+    },
+    "CropDef": {
+      "type": "object",
+      "properties": {
+        "harvest_quantity": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "item_id": {
+          "type": "string"
+        },
+        "reference_seconds": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "unlock_level": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "xp": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "item_id",
+        "reference_seconds",
+        "harvest_quantity",
+        "xp",
+        "unlock_level"
+      ]
+    },
     "DecorationPlacement": {
       "type": "object",
       "properties": {
@@ -1528,6 +1846,89 @@
         "item_id",
         "planted_at_ms",
         "ready_at_ms"
+      ]
+    },
+    "RecipeDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ItemStack"
+          }
+        },
+        "name": {
+          "type": "string"
+        },
+        "outputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ItemStack"
+          }
+        },
+        "reference_seconds": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "target": {
+          "$ref": "#/$defs/RecipeTarget"
+        },
+        "unlock_level": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "xp": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "target",
+        "inputs",
+        "outputs",
+        "reference_seconds",
+        "xp",
+        "unlock_level"
+      ]
+    },
+    "RecipeTarget": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "oven"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "machine"
+            },
+            "machine_kind": {
+              "$ref": "#/$defs/MachineKind"
+            }
+          },
+          "required": [
+            "type",
+            "machine_kind"
+          ]
+        }
       ]
     },
     "ReservedWorkTarget": {

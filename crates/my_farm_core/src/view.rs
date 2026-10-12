@@ -9,6 +9,8 @@ use ts_rs::TS;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, PartialEq)]
 pub struct FarmView {
+    #[serde(default)]
+    pub concrete_chains: std::collections::BTreeMap<String, ConcreteChainView>,
     #[ts(type = "number")]
     pub last_update_ms: i64,
     pub xp: u32,
@@ -362,6 +364,33 @@ pub fn farm_view(farm: &FarmState, catalog: &CatalogDocument) -> FarmView {
     inventory.sort_by(|a, b| a.item_id.cmp(&b.item_id));
 
     FarmView {
+        concrete_chains: farm
+            .concrete_chains
+            .iter()
+            .map(|(id, chain)| {
+                (
+                    id.clone(),
+                    ConcreteChainView {
+                        jobs: chain
+                            .jobs
+                            .iter()
+                            .map(|(id, job)| {
+                                (
+                                    id.clone(),
+                                    ConcreteJobView {
+                                        resident_id: job.resident_id.clone(),
+                                        after: job.after.clone(),
+                                        inputs: job.inputs.clone(),
+                                        task_ids: job.task_ids.clone(),
+                                        production_job_id: job.production_job_id.clone(),
+                                    },
+                                )
+                            })
+                            .collect(),
+                    },
+                )
+            })
+            .collect(),
         last_update_ms: farm.last_update_ms,
         xp: farm.xp,
         level: farm.level,
@@ -1337,4 +1366,19 @@ fn unlock(level: u32, label: &str, current_level: u32) -> UnlockView {
         label: label.to_owned(),
         unlocked: current_level >= level,
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, PartialEq, Eq)]
+pub struct ConcreteChainView {
+    pub jobs: std::collections::BTreeMap<String, ConcreteJobView>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, PartialEq, Eq)]
+pub struct ConcreteJobView {
+    pub resident_id: String,
+    pub after: Vec<String>,
+    pub inputs: Vec<crate::ConcreteInput>,
+    pub task_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub production_job_id: Option<String>,
 }
