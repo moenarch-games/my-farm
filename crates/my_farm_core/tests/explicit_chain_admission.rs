@@ -789,3 +789,97 @@ fn already_accepted_manual_harvest_ids_back_new_consumer_without_replanning_old_
     assert_eq!(inventory_quantity(&farm, "bread"), 1);
     assert_eq!(inventory_quantity(&farm, "wheat"), 1);
 }
+
+fn committed_harvest_task(farm: &FarmState, resident: &str) -> String {
+    farm.resident_task_queues[resident].iter().find(|task|
+        task.steps.iter().any(|step| matches!(&step.work,
+            ResidentTaskStepWork::HarvestCrop { crop_id, quantity } if crop_id == "wheat" && *quantity == 2)))
+        .expect("real accepted Wheat producer").id.clone()
+}
+
+#[test]
+fn actual_task_and_chain_job_aliases_cannot_claim_one_real_harvest_output_twice() {
+    let catalog = CatalogDocument::default_catalog();
+    let mut farm = ripe_farm(&catalog);
+    sell_stored_wheat(&mut farm, &catalog);
+    // Real unrelated stock must not hide a producer-binding overclaim.
+    accepted(
+        &mut farm,
+        &catalog,
+        FarmCommand::BuyMarketItem {
+            item_id: "wheat".into(),
+            quantity: 6,
+        },
+    );
+    admit(&mut farm, &catalog, future_chain("alias-first"));
+    let task_a = committed_harvest_task(&farm, "woman");
+    let mut alias = stored_chain("alias-bad");
+    alias["jobs"][0]["inputs"] = json!([
+        {"item_id":"wheat","quantity":1,"source":{"type":"committed_task_output","resident_id":"woman","task_id":task_a}},
+        {"item_id":"wheat","quantity":2,"source":{"type":"stored"}}
+    ]);
+    reject(
+        &mut farm,
+        &catalog,
+        alias,
+        &["producer", "quantity", "claim", "wheat", "reserved"],
+    );
+    // The other actual producer still has its legitimate unclaimed one Wheat.
+    let mut legitimate = stored_chain("alias-good");
+    legitimate["jobs"][0]["inputs"] = json!([
+        {"item_id":"wheat","quantity":1,"source":{"type":"producer_output","chain_id":"alias-first","job_id":"harvest-b"}},
+        {"item_id":"wheat","quantity":2,"source":{"type":"stored"}}
+    ]);
+    admit(&mut farm, &catalog, legitimate);
+    complete(&mut farm, &catalog);
+    assert_eq!(inventory_quantity(&farm, "bread"), 2);
+    assert_eq!(inventory_quantity(&farm, "wheat"), 4);
+}
+
+#[test]
+fn completed_historical_producer_cannot_relabel_new_unrelated_stored_wheat() {
+    let catalog = CatalogDocument::default_catalog();
+    let mut farm = ripe_farm(&catalog);
+    sell_stored_wheat(&mut farm, &catalog);
+    admit(&mut farm, &catalog, future_chain("history-first"));
+    let task_b = committed_harvest_task(&farm, "man");
+    complete(&mut farm, &catalog);
+    assert_eq!(inventory_quantity(&farm, "wheat"), 1);
+    sell_stored_wheat(&mut farm, &catalog);
+    accepted(
+        &mut farm,
+        &catalog,
+        FarmCommand::BuyMarketItem {
+            item_id: "wheat".into(),
+            quantity: 3,
+        },
+    );
+    for source in [
+        json!({"type":"producer_output","chain_id":"history-first","job_id":"harvest-b"}),
+        json!({"type":"committed_task_output","resident_id":"man","task_id":task_b}),
+    ] {
+        let mut request = stored_chain("history-bad");
+        request["jobs"][0]["inputs"] = json!([
+            {"item_id":"wheat","quantity":1,"source":source},
+            {"item_id":"wheat","quantity":2,"source":{"type":"stored"}}
+        ]);
+        reject(
+            &mut farm,
+            &catalog,
+            request,
+            &[
+                "producer",
+                "completed",
+                "future",
+                "quantity",
+                "claim",
+                "wheat",
+            ],
+        );
+    }
+    // Identifying actual current storage remains legitimate; only false origin fails.
+    admit(&mut farm, &catalog, stored_chain("history-current-storage"));
+    complete(&mut farm, &catalog);
+    assert_eq!(inventory_quantity(&farm, "bread"), 2);
+    assert_eq!(inventory_quantity(&farm, "wheat"), 0);
+}

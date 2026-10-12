@@ -163,3 +163,30 @@ three manual characterizations PASS including a new real public immediate-pickup
 witness. The new characterization is authored retrospectively relative to WIP,
 not falsely claimed as preceding all implementation. This corrects the test oracle,
 not a numerical product defect; original downstream obligations remain intact.
+
+
+## Independent producer-origin alias regression before next repair
+
+Retrospective relative to current first producer WIP, but authored before its next
+functional alias repair: one real HarvestCrop output must have one origin identity
+whether addressed by chain/local job or actual Resident/task ID. In a real ripe
+fixture with six separately bought stored Wheat, the first chain already claims
+both harvest-a Wheat. A second request aliasing that same task for one more Wheat
+must reject atomically despite unrelated stock masking aggregate availability.
+The other producer's legitimate remainder stays available and is exercised after
+rejection; alias rejection must not disable all committed producer inputs.
+
+A real completed first chain leaves one unclaimed harvested Wheat, which is then
+actually sold. Three unrelated Wheat are actually bought. Neither its historical
+chain/local record nor old actual task ID may assert guaranteed future origin for
+that unrelated stock. A fresh ordinary stored binding still succeeds. No permanent
+lot/goal/history/inventory ledger is prescribed: a no-longer-demonstrably-queued or
+pending physical producer can reject usefully rather than fabricate provenance.
+
+Both actual current-WIP regression tests RED at accepted invalid requests, not at
+missing API or unrelated locked input. Atomic/useful rejection and later legitimate
+consumer outcomes remain UNRUN until repair. Logs /tmp/farm225-alias-baseline.log
+and /tmp/farm225-history-baseline.log. Original17 numerical protections remain;
+new two make19. Start/Collect aliases of one real Oven output require the same
+source-identity audit even though this frozen Bread recipe consumes Wheat rather
+than invented Bread-consuming catalogue content.
