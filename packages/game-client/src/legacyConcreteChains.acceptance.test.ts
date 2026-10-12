@@ -33,7 +33,7 @@ test("an existing authoritative chain mapping survives public normalization unch
         },
       },
     },
-  };
+  } satisfies FarmView["concrete_chains"];
   const input = { ...legacyView(), concrete_chains };
   const before = structuredClone(input);
   expect(normalizeFarmView(input)).toEqual(before);

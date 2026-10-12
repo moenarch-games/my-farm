@@ -105,6 +105,7 @@ function fixture(): FarmView {
       woman: { x: 8, y: 10 },
       man: { x: 9, y: 10 },
     },
+    concrete_chains: {},
     resident_last_harvest_deposit: {},
     resident_work: {
       woman: {
