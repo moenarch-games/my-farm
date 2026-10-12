@@ -86,9 +86,16 @@ cargo run -p contract_codegen -- --check
 bun run build:web
 bun run build:pages
 bun run test:mobile
+bun run test:e2e
 bun run test:e2e:pages-demo
+bun scripts/check-browser-runtime-ownership.ts
 bun run validate
 ```
+
+The browser suites keep their runtime ownership explicit: `test:e2e` uses the
+HTTP/WebSocket server, while `test:e2e:pages-demo` runs browser-local WASM and its
+seeded Wheat lifecycle fixtures. The ownership check verifies actual Playwright
+discovery; executing both suites supplies the behavioral evidence.
 
 ## Architecture
 

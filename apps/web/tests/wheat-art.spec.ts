@@ -135,7 +135,7 @@ test("Wheat appearance follows planted Crop state through progress, harvest and 
   await changeWheatProgress(page, 1.1);
   await startSavedFarm(page);
   await expect(field).toHaveAttribute("data-wheat-appearance", "ready");
-  await field.click({ force: true });
+  await field.click();
   await expect(page.locator(".resource-icon--wheat img").first())
     .toHaveAttribute("src", /farm-art\/wheat-mature-straw\.png$/);
   await screenshot(page, "03-desktop-ready.png");
@@ -147,7 +147,7 @@ test("Wheat appearance follows planted Crop state through progress, harvest and 
 
   await page.setViewportSize({ width: 1280, height: 800 });
   await startSavedFarm(page);
-  await field.click({ force: true });
+  await field.click();
   const selection = page.locator(".panel-section").filter({
     has: page.getByRole("heading", { name: "Selection" }),
   });
