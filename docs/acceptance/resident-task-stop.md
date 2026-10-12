@@ -69,3 +69,30 @@ sequence leaves idle carry for the changed per-step scheduling branch; that
 specific characterization remains a source-audit limitation rather than a
 fabricated outcome or new cadence requirement. Existing stopped delayed/stepwise
 and normal temporal-tool parity contracts passed unchanged.
+
+## Supplemental legacy client response normalization
+
+Independent regression authored against frozen `7f9af825b7962b3330c861c00398b996e93b61a4`
+for review finding4244145236, before the next repair. Public
+`normalizeFarmView` must default a missing resident-entry stop flag to false,
+preserve explicit true/false, retain all other identity/state fields and avoid
+mutating its input. An entirely absent legacy work map retains existing default
+behavior. Both public farm/command response adapters must provide the same
+normalized boolean without changing response versions/events/error/acceptance.
+The fixture represents the legitimate pre-field wire shape using an optional
+field type, without assertion casts pretending it already satisfies FarmView.
+
+Actual Bun baseline executes4 methods:2 PASS (absent map/explicit booleans),
+2 FAIL with actual `undefined` where false is required (existing legacy entry and
+public response adapters). Log `/tmp/farm223-legacy-stop-baseline.log`.
+Current LegacyFarmView typing also rejects the legitimate optional legacy flag;
+that separate compiler baseline is recorded, not substituted for runtime RED.
+Original protected stop contracts remain unchanged.
+
+Adjacent source audit: ResidentTaskSummaryView (current/queued view tasks) has
+no stop_requested field, so no task-summary default is invented. The persisted
+Rust ResidentTask boolean already has serde(default); this client normalizes
+FarmView rather than raw Farm state. Both response adapters delegate to the one
+public view normalizer. No broad malformed-JSON validation or new stop policy is
+introduced. Shared conventions resolve sourceRevision
+`46d8793bb3034326561f876dcc67dbaa5aa1e432`.
