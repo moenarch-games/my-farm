@@ -81,3 +81,65 @@ before the producer starts. Existing214 temporal tools, harvest deposit and45 st
 contracts remain unchanged. Full `bun run validate` and applicable server/WASM checks
 are required after production because shared planner/elapsed/save mapping is incomplete.
 No Pages, unknown-ACK protocol, direct takeover or #200 product acceptance is claimed.
+
+
+## Supplemental complete seams before implementation
+
+Protected actual phase witnesses now require pre-ready baking, post-ready real
+Resident pickup with zero Barn Bread, reload at bake/carry and successful physical
+deposit. Active final-collection stop uses existing221 cancellation and real cleanup,
+retaining used inputs/output/Tools; necessary-producer stop rejects atomically rather
+than stranding its accepted consumer. No new whole-goal cancellation engine is required.
+Pickup/return completion events derive a simple independent finite-Tool custody
+calendar with return-before-pickup ties and no overlapping single-Sickle occupancy.
+
+The additive authoritative FarmView concrete_chains mapping is keyed by chain ID.
+It exposes inspectable local-job→actual task/Oven IDs, Resident assignments, dependency
+edges and producer quantity bindings; records must agree with actual Farm commitments
+and survive reload without creating inventory. Shape/packing and whether one physical
+task can contain multiple job boundaries may be translated independently before the
+producer: task ownership must be unambiguous, not mandate a speculative splitting
+algorithm. The client-only legacy omission test expects an empty map and identical
+other state, with no cast pretending old wire types contain a new field. Current map
+is absent, so its public normalization genuinely runtime-REDs at undefined versus{}.
+Its compile RED for the absent output property is distinct from the Rust wire gap.
+A valid modern map's per-field normalization must preserve authoritative data; source
+audit/translation must not insert fabricated chains or default populated values.
+
+Initial12 missing-intent tests plus five supplemental phase/view/old-producer tests
+(all17) compile. Every
+new Rust assertion still stops at absent admit_concrete_chain; phase/interval/view
+outcomes are UNRUN. Characterizations remain independently2PASS. Source-audit
+requirements (shared old/new admission/executor and persisted minimal claims/terms)
+remain required postimplementation. This protected acceptance is now authored across
+all requested minimal boundaries, with routine API/read-model translations pending
+independent verification before production and full applicable postimplementation
+validation unrun; no product/readiness claim follows from authoring.
+
+
+Final independent baseline before production: manual2/2 PASS; chain17/17 RED
+only at missing public intent (all later outcomes UNRUN); public client2 cases
+include omission RED and populated wire-map preservation GREEN. The latter is a
+compatibility fixture, not proof of real core admission. Strict focused Rust
+Clippy and workspace formatting PASS. Real pre-existing SweepHarvest task IDs
+and their actual Wheat output quantities back a new consumer without changing
+accepted producer queues; bindings use a routine proposed committed_task_output
+source spelling. This complements existing manual projected-input support rather
+than claiming that current core cannot project future harvests at all.
+
+Reproduction:
+
+```sh
+cargo test -p my_farm_core --test explicit_chain_characterization
+cargo test -p my_farm_core --test explicit_chain_admission
+cargo clippy -p my_farm_core --test explicit_chain_characterization --test explicit_chain_admission -- -D warnings
+bun test packages/game-client/src/legacyConcreteChains.acceptance.test.ts
+```
+
+Before closure, independently translate any routine API/read-model names against
+real public types without dropping obligations, execute all post-admission cases,
+inspect authority reuse and minimal persistent binding/terms representation, and
+run the documented full repository gate. Source-side current pending recipe IDs
+alone do not snapshot terms; no test-first claim about future implementation or
+ready product follows from this contract. Closes only225 after actual verification;
+parents171/172/134/200 remain open.

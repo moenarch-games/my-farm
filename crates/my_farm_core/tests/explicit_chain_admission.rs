@@ -453,3 +453,289 @@ fn duplicate_explicit_chain_identity_cannot_add_jobs_or_reservations() {
     complete(&mut farm, &catalog);
     assert_eq!(inventory_quantity(&farm, "bread"), 1);
 }
+
+fn advance_until(
+    farm: &mut FarmState,
+    catalog: &CatalogDocument,
+    predicate: impl Fn(&FarmState) -> bool,
+) {
+    for _ in 0..256 {
+        conserved(farm);
+        assert!(farm.blocked_resident_tasks.is_empty());
+        if predicate(farm) {
+            return;
+        }
+        let next = next_task(farm).expect("predicate must be reached by real committed work");
+        apply_elapsed(farm, catalog, next);
+    }
+    panic!("bounded tiny fixture did not reach physical phase");
+}
+
+#[test]
+fn oven_ready_and_real_resident_pickup_are_distinct_from_physical_barn_deposit() {
+    let catalog = CatalogDocument::default_catalog();
+    let mut farm = oven_farm(&catalog);
+    admit(&mut farm, &catalog, stored_chain("phases-one"));
+    advance_until(&mut farm, &catalog, |farm| {
+        farm.oven
+            .queue
+            .first()
+            .is_some_and(|job| job.status == OvenJobStatus::Producing)
+    });
+    let ready = farm.oven.queue[0].ready_at_ms;
+    assert!(farm.last_update_ms < ready);
+    assert_eq!(inventory_quantity(&farm, "bread"), 0);
+    let mut restored: FarmState = serde_json::from_value(state(&farm)).unwrap();
+    advance_until(&mut restored, &catalog, |farm| {
+        farm.resident_inventories
+            .get("man")
+            .is_some_and(|inventory| inventory.items.get("bread") == Some(&1))
+    });
+    assert!(
+        restored.last_update_ms >= ready,
+        "no pickup before actual autonomous readiness"
+    );
+    assert!(restored.oven.queue.is_empty());
+    assert_eq!(
+        inventory_quantity(&restored, "bread"),
+        0,
+        "carried output is not physically in Barn"
+    );
+    let mut carried_reload: FarmState = serde_json::from_value(state(&restored)).unwrap();
+    complete(&mut carried_reload, &catalog);
+    assert_eq!(inventory_quantity(&carried_reload, "bread"), 1);
+}
+
+#[test]
+fn stop_after_final_real_pickup_uses_existing_safe_physical_cleanup_and_reload() {
+    let catalog = CatalogDocument::default_catalog();
+    let mut farm = oven_farm(&catalog);
+    admit(&mut farm, &catalog, stored_chain("cleanup-one"));
+    advance_until(&mut farm, &catalog, |farm| {
+        farm.resident_inventories
+            .get("man")
+            .is_some_and(|inventory| inventory.items.get("bread") == Some(&1))
+    });
+    assert_eq!(inventory_quantity(&farm, "bread"), 0);
+    let task = farm.resident_task_queues["man"][0].id.clone();
+    let now = farm.last_update_ms;
+    let stopped = apply_command(
+        &mut farm,
+        &catalog,
+        FarmCommand::CancelResidentTask {
+            resident_id: "man".into(),
+            task_id: task,
+        },
+        now,
+    );
+    assert!(
+        stopped.accepted,
+        "safe final cleanup stop rejected: {:?}",
+        stopped.error
+    );
+    let mut restored: FarmState = serde_json::from_value(state(&farm)).unwrap();
+    complete(&mut restored, &catalog);
+    assert_eq!(
+        inventory_quantity(&restored, "bread"),
+        1,
+        "completed real output must survive safe cleanup"
+    );
+    assert_eq!(
+        inventory_quantity(&restored, "wheat"),
+        3,
+        "used ingredients cannot be refunded"
+    );
+    let settled = state(&restored);
+    let now = restored.last_update_ms;
+    apply_elapsed(&mut restored, &catalog, now);
+    assert_eq!(state(&restored), settled);
+}
+
+#[test]
+fn planned_limited_tool_custody_has_nonoverlapping_actual_pickup_and_return_intervals() {
+    use std::collections::BTreeMap;
+    let catalog = CatalogDocument::default_catalog();
+    let mut farm = ripe_farm(&catalog);
+    sell_stored_wheat(&mut farm, &catalog);
+    admit(&mut farm, &catalog, future_chain("intervals-one"));
+    let mut events: BTreeMap<my_farm_core::ToolKind, Vec<(i64, i64)>> = BTreeMap::new();
+    for queue in farm.resident_task_queues.values() {
+        for task in queue {
+            let mut at = task.ready_at_ms;
+            for (index, step) in task.steps.iter().enumerate() {
+                if index > 0 {
+                    at += step.duration_ms
+                }
+                match &step.work {
+                    ResidentTaskStepWork::PickupTools { tools, .. } => {
+                        for tool in tools {
+                            events
+                                .entry(tool.tool_kind)
+                                .or_default()
+                                .push((at, i64::from(tool.quantity)));
+                        }
+                    }
+                    ResidentTaskStepWork::ReturnTools { tools, .. } => {
+                        for tool in tools {
+                            events
+                                .entry(tool.tool_kind)
+                                .or_default()
+                                .push((at, -i64::from(tool.quantity)));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+    assert!(
+        events
+            .get(&my_farm_core::ToolKind::Sickle)
+            .is_some_and(|events| events.len() >= 4),
+        "both actual harvests must have limited Sickle custody"
+    );
+    for (tool, mut events) in events {
+        events.sort_unstable(); // return before pickup at equal timestamps
+        let mut custody = 0;
+        for (at, delta) in events {
+            custody += delta;
+            assert!(
+                (0..=1).contains(&custody),
+                "{tool:?} physical custody conflict at{at}"
+            );
+        }
+        assert_eq!(custody, 0, "{tool:?} missing physical return");
+    }
+    complete(&mut farm, &catalog);
+    conserved(&farm);
+}
+
+#[test]
+fn authoritative_view_maps_local_jobs_to_real_ids_assignments_dependencies_and_quantities() {
+    let catalog = CatalogDocument::default_catalog();
+    let mut farm = ripe_farm(&catalog);
+    sell_stored_wheat(&mut farm, &catalog);
+    let request = future_chain("view-one");
+    admit(&mut farm, &catalog, request.clone());
+    let view = serde_json::to_value(my_farm_core::farm_view(&farm, &catalog)).unwrap();
+    let chain = &view["concrete_chains"]["view-one"];
+    assert!(chain.is_object(), "authoritative chain read model missing");
+    let jobs = chain["jobs"].as_object().expect("local-job mapping");
+    assert_eq!(jobs.len(), 4);
+    for input in request["jobs"].as_array().unwrap() {
+        let local = input["id"].as_str().unwrap();
+        let job = &jobs[local];
+        assert_eq!(job["resident_id"], input["resident_id"]);
+        assert_eq!(job["after"], input["after"]);
+        assert_eq!(
+            job["inputs"], input["inputs"],
+            "backed bindings must remain inspectable, not invented available stock"
+        );
+        let actual = job["task_ids"]
+            .as_array()
+            .expect("actual committed task IDs");
+        assert!(!actual.is_empty());
+        for id in actual {
+            let id = id.as_str().unwrap();
+            assert!(
+                farm.resident_task_queues[input["resident_id"].as_str().unwrap()]
+                    .iter()
+                    .any(|task| task.id == id)
+            );
+        }
+    }
+    let bake_id = jobs["bake"]["production_job_id"]
+        .as_str()
+        .expect("actual Oven identity");
+    assert!(
+        farm.oven
+            .queue
+            .iter()
+            .any(|job| job.id == bake_id && job.recipe_id == "bread")
+    );
+    assert_eq!(jobs["collect"]["production_job_id"].as_str(), Some(bake_id));
+    // Coalescing jobs into a task is allowed; each mapped boundary must still
+    // correspond to actual authoritative work on its assigned Resident.
+    for local in ["harvest-a", "harvest-b", "bake", "collect"] {
+        let job = &jobs[local];
+        let ids = job["task_ids"].as_array().unwrap();
+        let queue = &farm.resident_task_queues[job["resident_id"].as_str().unwrap()];
+        assert!(
+            queue
+                .iter()
+                .filter(|task| ids.iter().any(|id| id.as_str() == Some(&task.id)))
+                .flat_map(|task| &task.steps)
+                .any(|step| match (&step.work, local) {
+                    (
+                        ResidentTaskStepWork::HarvestCrop { crop_id, quantity },
+                        "harvest-a" | "harvest-b",
+                    ) => crop_id == "wheat" && *quantity == 2,
+                    (ResidentTaskStepWork::StartOvenRecipe { job_id, recipe_id }, "bake")
+                    | (ResidentTaskStepWork::CollectOvenJob { job_id, recipe_id }, "collect") =>
+                        job_id == bake_id && recipe_id == "bread",
+                    _ => false,
+                }),
+            "{local} mapping has no real work boundary"
+        );
+    }
+    assert_eq!(
+        inventory_quantity(&farm, "wheat"),
+        0,
+        "view cannot materialize future Wheat"
+    );
+    let restored: FarmState = serde_json::from_value(state(&farm)).unwrap();
+    let roundtrip = serde_json::to_value(my_farm_core::farm_view(&restored, &catalog)).unwrap();
+    assert_eq!(roundtrip["concrete_chains"], view["concrete_chains"]);
+}
+
+#[test]
+fn already_accepted_manual_harvest_ids_back_new_consumer_without_replanning_old_work() {
+    let catalog = CatalogDocument::default_catalog();
+    let mut farm = ripe_farm(&catalog);
+    accepted(
+        &mut farm,
+        &catalog,
+        FarmCommand::SweepHarvest {
+            plot_ids: vec!["plot-1".into(), "plot-2".into()],
+            harvest_mode: None,
+        },
+    );
+    sell_stored_wheat(&mut farm, &catalog);
+    assert_eq!(inventory_quantity(&farm, "wheat"), 0);
+    let old = farm.resident_task_queues["woman"].clone();
+    let mut remaining = 3;
+    let mut bindings = vec![];
+    for task in &old {
+        let output: u32 = task
+            .steps
+            .iter()
+            .filter_map(|step| match &step.work {
+                ResidentTaskStepWork::HarvestCrop { crop_id, quantity } if crop_id == "wheat" => {
+                    Some(*quantity)
+                }
+                _ => None,
+            })
+            .sum();
+        let quantity = output.min(remaining);
+        if quantity > 0 {
+            bindings.push(json!({"item_id":"wheat","quantity":quantity,
+                "source":{"type":"committed_task_output","resident_id":"woman","task_id":task.id}}));
+            remaining -= quantity;
+        }
+    }
+    assert_eq!(
+        remaining, 0,
+        "actual accepted harvest lacks three backed Wheat"
+    );
+    let mut request = stored_chain("old-producer-one");
+    request["jobs"][0]["inputs"] = json!(bindings);
+    admit(&mut farm, &catalog, request);
+    assert_eq!(
+        &farm.resident_task_queues["woman"][..old.len()],
+        old.as_slice(),
+        "binding an old producer cannot replace its accepted identity/timing"
+    );
+    complete(&mut farm, &catalog);
+    assert_eq!(inventory_quantity(&farm, "bread"), 1);
+    assert_eq!(inventory_quantity(&farm, "wheat"), 1);
+}
