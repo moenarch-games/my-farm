@@ -286,6 +286,8 @@ pub struct BlockedResidentTaskView {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, PartialEq)]
 pub struct ResidentWorkView {
+    #[serde(default)]
+    pub stop_requested: bool,
     pub resident_id: String,
     pub display_name: String,
     pub selected: bool,
@@ -512,6 +514,7 @@ fn resident_work(
             (
                 resident.id.clone(),
                 ResidentWorkView {
+                    stop_requested: current_task.is_some_and(|task| task.stop_requested),
                     resident_id: resident.id.clone(),
                     display_name: resident.display_name.clone(),
                     selected: resident.id == farm.selected_resident_id,
