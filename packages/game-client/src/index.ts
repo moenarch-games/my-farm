@@ -377,6 +377,7 @@ function defaultResidentWorkFor(
     residents.map((resident): [string, ResidentWorkView] => [
       resident.id,
       {
+        stop_requested: false,
         resident_id: resident.id,
         display_name: resident.display_name,
         selected: resident.id === selectedResidentId,

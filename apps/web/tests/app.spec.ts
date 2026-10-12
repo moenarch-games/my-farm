@@ -333,6 +333,7 @@ test("resident selector shows queue counts and live task progress", async ({ pag
   const view = withResidentTaskQueues(farmView, {
       woman: [
         {
+          stop_requested: false,
           id: "task-1",
           kind: { type: "field_work" },
           started_at_ms: now - 10_000,
@@ -346,6 +347,7 @@ test("resident selector shows queue counts and live task progress", async ({ pag
           ],
         },
         {
+          stop_requested: false,
           id: "task-2",
           kind: { type: "field_work" },
           started_at_ms: now + 10_000,
@@ -392,6 +394,7 @@ test("Resident Details reorders future queued tasks with controls and drag", asy
   const view = withResidentTaskQueues(farmView, {
       woman: [
         task({
+          stop_requested: false,
           id: "task-1",
           kind: { type: "field_work" },
           started_at_ms: now,
@@ -406,6 +409,7 @@ test("Resident Details reorders future queued tasks with controls and drag", asy
           ],
         }),
         task({
+          stop_requested: false,
           id: "task-2",
           kind: { type: "field_work" },
           started_at_ms: now + 5_000,
@@ -423,6 +427,7 @@ test("Resident Details reorders future queued tasks with controls and drag", asy
           ],
         }),
         task({
+          stop_requested: false,
           id: "task-3",
           kind: { type: "field_work" },
           started_at_ms: now + 10_000,
@@ -494,6 +499,7 @@ test("reserved work targets disable direct actions with a pending reason", async
   const view = withResidentTaskQueues(viewBase, {
       woman: [
         {
+          stop_requested: false,
           id: "field-task",
           kind: { type: "field_work" },
           started_at_ms: now - 5_000,
@@ -507,6 +513,7 @@ test("reserved work targets disable direct actions with a pending reason", async
           ],
         },
         {
+          stop_requested: false,
           id: "machine-task",
           kind: { type: "production_work" },
           started_at_ms: now - 5_000,
@@ -520,6 +527,7 @@ test("reserved work targets disable direct actions with a pending reason", async
           ],
         },
         {
+          stop_requested: false,
           id: "animal-task",
           kind: { type: "production_work" },
           started_at_ms: now - 5_000,
@@ -625,6 +633,7 @@ test("moves a resident toward the current task target over authoritative task ti
       woman: [],
       man: [
         {
+          stop_requested: false,
           id: "task-1",
           kind: { type: "field_work" },
           started_at_ms: startedAt,
@@ -685,6 +694,7 @@ test("clicking a farm resident selects them, sends assignment command, and shows
   }, {
       woman: [
         {
+          stop_requested: false,
           id: "woman-task",
           kind: { type: "field_work" },
           started_at_ms: now,
@@ -708,6 +718,7 @@ test("clicking a farm resident selects them, sends assignment command, and shows
       ],
       man: [
         {
+          stop_requested: false,
           id: "man-task",
           kind: { type: "field_work" },
           started_at_ms: now,
@@ -729,6 +740,7 @@ test("clicking a farm resident selects them, sends assignment command, and shows
           ],
         },
         {
+          stop_requested: false,
           id: "man-task-queued",
           kind: { type: "field_work" },
           started_at_ms: now + 5_000,
@@ -804,6 +816,7 @@ test("blocked resident work shows a scene warning and Resident Details reason", 
   const view = withResidentTaskQueues(farmView, {
       woman: [
         {
+          stop_requested: false,
           id: "blocked-task",
           kind: { type: "field_work" },
           started_at_ms: now - 5_000,
@@ -888,6 +901,7 @@ test("renders resident as working after walking to the approach tile", async ({ 
   const view = withResidentTaskQueues(farmView, {
       woman: [
         {
+          stop_requested: false,
           id: "task-1",
           kind: { type: "field_work" },
           started_at_ms: now - 1_500,
@@ -923,6 +937,7 @@ test("renders task-specific resident harvest visual cue", async ({ page }) => {
   const view = withResidentTaskQueues(farmView, {
       woman: [
         {
+          stop_requested: false,
           id: "task-harvest",
           kind: { type: "field_work" },
           started_at_ms: now - 500,
@@ -954,6 +969,7 @@ test("renders task-specific resident tools for machine and animal work", async (
   const machineView = withResidentTaskQueues(farmView, {
       woman: [
         {
+          stop_requested: false,
           id: "task-machine",
           kind: { type: "production_work" },
           started_at_ms: now - 500,
@@ -970,6 +986,7 @@ test("renders task-specific resident tools for machine and animal work", async (
       ],
       man: [
         {
+          stop_requested: false,
           id: "task-animal",
           kind: { type: "production_work" },
           started_at_ms: now - 500,
@@ -999,6 +1016,7 @@ test("renders task-specific resident tool for collecting animal products", async
   const view = withResidentTaskQueues(farmView, {
       woman: [
         {
+          stop_requested: false,
           id: "task-animal-product",
           kind: { type: "production_work" },
           started_at_ms: now - 500,
@@ -1030,6 +1048,7 @@ test("keeps resident work visuals stable when reduced motion is requested", asyn
   const view = withResidentTaskQueues(farmView, {
       woman: [
         {
+          stop_requested: false,
           id: "task-plant",
           kind: { type: "field_work" },
           started_at_ms: now - 500,
@@ -1061,6 +1080,7 @@ test("animates active resident work in normal motion mode", async ({ page }) => 
   const view = withResidentTaskQueues(farmView, {
       woman: [
         {
+          stop_requested: false,
           id: "task-harvest",
           kind: { type: "field_work" },
           started_at_ms: now - 500,
@@ -1090,6 +1110,7 @@ test("uses the first remaining batch task step as the scene movement target", as
   const batchView = withResidentTaskQueues(farmView, {
       woman: [
         {
+          stop_requested: false,
           id: "task-1",
           kind: { type: "field_work" },
           started_at_ms: now,
@@ -1122,6 +1143,7 @@ test("uses the first remaining batch task step as the scene movement target", as
   const nextStepView = withResidentTaskQueues(batchView, {
       woman: [
         {
+          stop_requested: false,
           id: "task-1",
           kind: { type: "field_work" },
           started_at_ms: now + 2_000,
@@ -2024,6 +2046,7 @@ test("Kitchen Oven Workstation sends oven commands and shows pending resident wo
   const commands: CommandRequest[] = [];
   const now = Date.now();
   const ovenTask: ResidentTask = {
+    stop_requested: false,
     id: "task-oven-start",
     kind: { type: "production_work" },
     started_at_ms: now - 500,
@@ -2102,6 +2125,7 @@ test("Kitchen Oven Workstation sends collect command for ready output", async ({
 test("Kitchen Oven Workstation shows collecting resident with oven mitts", async ({ page }) => {
   const now = Date.now();
   const collectTask: ResidentTask = {
+    stop_requested: false,
     id: "task-oven-collect",
     kind: { type: "production_work" },
     started_at_ms: now - 500,
@@ -3489,6 +3513,7 @@ test("Farm Shop move and stock controls respect queued work and sale feedback", 
     {
       woman: [
         task({
+          stop_requested: false,
           id: "task-stock-shop",
           kind: { type: "shop_work" },
           started_at_ms: now,
@@ -3955,6 +3980,7 @@ function withResidentTaskQueues(
           : "working"
         : "idle";
       const work: ResidentWorkView = {
+        stop_requested: false,
         resident_id: resident.id,
         display_name: resident.display_name,
         selected: resident.id === view.selected_resident_id,

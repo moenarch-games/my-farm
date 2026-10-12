@@ -15,6 +15,7 @@ import {
 
 test("interpolates resident walking along stored path", () => {
   const view = farmViewWithTask({
+    stop_requested: false,
     id: "task-1",
     kind: { type: "field_work" },
     started_at_ms: 1_000,
@@ -44,6 +45,7 @@ test("interpolates resident walking along stored path", () => {
 
 test("resident works at approach tile after walking finishes", () => {
   const view = farmViewWithTask({
+    stop_requested: false,
     id: "task-1",
     kind: { type: "field_work" },
     started_at_ms: 1_000,
@@ -70,6 +72,7 @@ test("resident works at approach tile after walking finishes", () => {
 
 test("resident working pose uses current step target when scene snapshot is still walking", () => {
   const view = farmViewWithTask({
+    stop_requested: false,
     id: "task-1",
     kind: { type: "field_work" },
     started_at_ms: 1_000,
@@ -141,6 +144,7 @@ test("path interpolation clamps to endpoints", () => {
 
 test("detects active resident walking while a path step is in progress", () => {
   const view = farmViewWithTask({
+    stop_requested: false,
     id: "task-1",
     kind: { type: "field_work" },
     started_at_ms: 1_000,
@@ -163,6 +167,7 @@ test("detects active resident walking while a path step is in progress", () => {
 
 test("does not report active resident walking after the walk phase ends", () => {
   const view = farmViewWithTask({
+    stop_requested: false,
     id: "task-1",
     kind: { type: "field_work" },
     started_at_ms: 1_000,
@@ -185,6 +190,7 @@ test("does not report active resident walking after the walk phase ends", () => 
 
 test("does not report active resident walking for legacy steps without paths", () => {
   const view = farmViewWithTask({
+    stop_requested: false,
     id: "task-1",
     kind: { type: "field_work" },
     started_at_ms: 1_000,
@@ -210,6 +216,7 @@ test("does not report active resident walking while residents are idle", () => {
 
 test("keeps oven resident outside while walking to the Farmhouse", () => {
   const view = farmViewWithTask({
+    stop_requested: false,
     id: "task-oven",
     kind: { type: "production_work" },
     started_at_ms: 1_000,
@@ -232,6 +239,7 @@ test("keeps oven resident outside while walking to the Farmhouse", () => {
 
 test("treats oven resident as inside the Farmhouse after entry", () => {
   const view = farmViewWithTask({
+    stop_requested: false,
     id: "task-oven",
     kind: { type: "production_work" },
     started_at_ms: 1_000,
@@ -269,6 +277,7 @@ test("selected resident lookup returns selected resident", () => {
 
 test("returns visible scene path for a resident current step", () => {
   const view = farmViewWithTask({
+    stop_requested: false,
     id: "task-1",
     kind: { type: "field_work" },
     started_at_ms: 1_000,
@@ -302,6 +311,7 @@ test("returns visible scene path for a resident current step", () => {
 
 test("keeps current step path visible during work phase", () => {
   const view = farmViewWithTask({
+    stop_requested: false,
     id: "task-1",
     kind: { type: "field_work" },
     started_at_ms: 1_000,
@@ -327,6 +337,7 @@ test("does not return scene path for idle residents or empty walk paths", () => 
   expect(
     currentResidentScenePath(
       farmViewWithTask({
+        stop_requested: false,
         id: "task-1",
         kind: { type: "field_work" },
         started_at_ms: 1_000,
@@ -370,6 +381,7 @@ test("maps resident current task work to a visual activity and prop", () => {
 
   for (const { work, activity, prop } of cases) {
     const view = farmViewWithTask({
+      stop_requested: false,
       id: `task-${work.type}`,
       kind: { type: "production_work" },
       started_at_ms: 1_000,
@@ -398,6 +410,7 @@ test("uses idle and walking visual cues from authoritative scene state", () => {
   });
 
   const walkingView = farmViewWithTask({
+    stop_requested: false,
     id: "task-1",
     kind: { type: "field_work" },
     started_at_ms: 1_000,
@@ -442,6 +455,7 @@ test("maps resident current task work to a presentation tool", () => {
 
   for (const { work, heldTool } of cases) {
     const view = farmViewWithTask({
+      stop_requested: false,
       id: `task-${work.type}`,
       kind: { type: "production_work" },
       started_at_ms: 1_000,
@@ -466,6 +480,7 @@ test("maps resident current task work to a presentation tool", () => {
 
 test("resident visual presentation uses carried tools while walking", () => {
   const view = farmViewWithTask({
+    stop_requested: false,
     id: "task-1",
     kind: { type: "field_work" },
     started_at_ms: 1_000,
@@ -494,6 +509,7 @@ test("resident visual presentation uses carried tools while walking", () => {
 
 test("blocked resident visual presentation does not use active work animation", () => {
   const view = farmViewWithTask({
+    stop_requested: false,
     id: "blocked-task",
     kind: { type: "field_work" },
     started_at_ms: 1_000,
@@ -579,6 +595,7 @@ function farmViewWithTask(task: ResidentTask | null): FarmView {
     resident_locations: residentLocations,
     resident_work: {
       woman: {
+        stop_requested: false,
         resident_id: "woman",
         display_name: "Woman",
         selected: true,
@@ -606,6 +623,7 @@ function farmViewWithTask(task: ResidentTask | null): FarmView {
         carry: { items: [], tools: [] },
       },
       man: {
+        stop_requested: false,
         resident_id: "man",
         display_name: "Man",
         selected: false,
