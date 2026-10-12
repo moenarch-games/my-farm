@@ -952,3 +952,362 @@ fn already_started_collection_cannot_create_bread_before_delayed_actual_oven_rea
     assert_eq!(inventory_quantity(&restored, "bread"), 1);
     assert_eq!(inventory_quantity(&restored, "wheat"), 3);
 }
+
+#[test]
+fn future_bound_inputs_do_not_reserve_unrelated_current_wheat_for_new_planting() {
+    let catalog = CatalogDocument::default_catalog();
+    let mut farm = ripe_farm(&catalog);
+    sell_stored_wheat(&mut farm, &catalog);
+    accepted(
+        &mut farm,
+        &catalog,
+        FarmCommand::BuyMarketItem {
+            item_id: "wheat".into(),
+            quantity: 2,
+        },
+    );
+    admit(&mut farm, &catalog, future_chain("future-only-inputs"));
+    assert_eq!(inventory_quantity(&farm, "wheat"), 2);
+    let old: std::collections::BTreeMap<_, _> = farm.resident_task_queues.clone();
+    let request = json!({"type":"admit_concrete_chain","chain_id":"current-two-seeds","jobs":[
+        {"id":"plant-a","resident_id":"woman","work":{"type":"plant_crop","plot_id":"plot-3","crop_id":"wheat"},"after":[],"inputs":[{"item_id":"wheat","quantity":1,"source":{"type":"stored"}}]},
+        {"id":"plant-b","resident_id":"man","work":{"type":"plant_crop","plot_id":"plot-4","crop_id":"wheat"},"after":[],"inputs":[{"item_id":"wheat","quantity":1,"source":{"type":"stored"}}]}
+    ]});
+    admit(&mut farm, &catalog, request);
+    for (resident, previous) in old {
+        assert_eq!(
+            &farm.resident_task_queues[&resident][..previous.len()],
+            previous.as_slice()
+        );
+    }
+    complete(&mut farm, &catalog);
+    assert_eq!(inventory_quantity(&farm, "wheat"), 1);
+    assert_eq!(inventory_quantity(&farm, "bread"), 1);
+    for plot in ["plot-3", "plot-4"] {
+        assert!(
+            farm.field_plots
+                .iter()
+                .find(|field| field.id == plot)
+                .unwrap()
+                .crop
+                .is_some()
+        );
+    }
+}
+
+#[test]
+fn physically_deposited_future_inputs_cannot_be_stolen_before_reserved_pickup() {
+    let catalog = CatalogDocument::default_catalog();
+    let mut farm = ripe_farm(&catalog);
+    sell_stored_wheat(&mut farm, &catalog);
+    admit(&mut farm, &catalog, future_chain("physical-inputs"));
+    advance_until(&mut farm, &catalog, |farm| {
+        inventory_quantity(farm, "wheat") == 4
+        && farm.resident_task_queues.values().flatten().flat_map(|task| &task.steps)
+            .any(|step| matches!(&step.work, ResidentTaskStepWork::PickupItems { items, .. } if items.iter().any(|item| item.item_id == "wheat" && item.quantity == 3)))
+    });
+    let before = state(&farm);
+    let now = farm.last_update_ms;
+    let sold = apply_command(
+        &mut farm,
+        &catalog,
+        FarmCommand::SellMarketItem {
+            item_id: "wheat".into(),
+            quantity: 3,
+        },
+        now,
+    );
+    assert!(
+        !sold.accepted,
+        "manual sale stole physically deposited promised ingredients"
+    );
+    let reason = sold.error.unwrap().message.to_lowercase();
+    assert!(
+        ["reserved", "available", "commit", "quantity"]
+            .iter()
+            .any(|token| reason.contains(token)),
+        "unrelated sale rejection: {reason}"
+    );
+    assert_eq!(state(&farm), before);
+    // Only three units are claimed; the actual unclaimed remainder is ordinary stock.
+    accepted(
+        &mut farm,
+        &catalog,
+        FarmCommand::SellMarketItem {
+            item_id: "wheat".into(),
+            quantity: 1,
+        },
+    );
+    complete(&mut farm, &catalog);
+    assert_eq!(inventory_quantity(&farm, "bread"), 1);
+    assert_eq!(inventory_quantity(&farm, "wheat"), 0);
+}
+
+#[test]
+fn stopping_unused_final_consumer_then_pending_bake_releases_only_unused_producer_claims() {
+    let catalog = CatalogDocument::default_catalog();
+    let mut farm = ripe_farm(&catalog);
+    sell_stored_wheat(&mut farm, &catalog);
+    admit(&mut farm, &catalog, future_chain("unused-claims"));
+    let view = serde_json::to_value(my_farm_core::farm_view(&farm, &catalog)).unwrap();
+    let jobs = &view["concrete_chains"]["unused-claims"]["jobs"];
+    let tool_before = farm.resident_inventories["woman"].tools.clone();
+    for (job, resident) in [("collect", "man"), ("bake", "woman")] {
+        let id = jobs[job]["task_ids"][0].as_str().unwrap().to_owned();
+        let task = farm.resident_task_queues[resident]
+            .iter()
+            .find(|task| task.id == id)
+            .unwrap();
+        assert!(
+            task.started_at_ms > farm.last_update_ms,
+            "fixture consumer has already started"
+        );
+        accepted(
+            &mut farm,
+            &catalog,
+            FarmCommand::CancelResidentTask {
+                resident_id: resident.into(),
+                task_id: id,
+            },
+        );
+    }
+    assert_eq!(
+        farm.resident_inventories["woman"].tools, tool_before,
+        "active producer custody/cleanup changed"
+    );
+    assert_eq!(
+        inventory_quantity(&farm, "wheat"),
+        0,
+        "unconsumed future inputs cannot be refunded as stock"
+    );
+    assert!(farm.oven.queue.is_empty());
+    let mut replacement = stored_chain("replacement-consumer");
+    replacement["jobs"][0]["inputs"] = json!([
+        {"item_id":"wheat","quantity":2,"source":{"type":"producer_output","chain_id":"unused-claims","job_id":"harvest-a"}},
+        {"item_id":"wheat","quantity":1,"source":{"type":"producer_output","chain_id":"unused-claims","job_id":"harvest-b"}}
+    ]);
+    admit(&mut farm, &catalog, replacement);
+    complete(&mut farm, &catalog);
+    assert_eq!(inventory_quantity(&farm, "bread"), 1);
+    assert_eq!(inventory_quantity(&farm, "wheat"), 1);
+}
+
+fn growing_chain(id: &str) -> Value {
+    let mut request = future_chain(id);
+    let jobs = request["jobs"].as_array_mut().unwrap();
+    jobs[0]["after"] = json!(["plant-a"]);
+    jobs[1]["after"] = json!(["plant-b"]);
+    for (id, plot, resident) in [("plant-b", "plot-2", "man"), ("plant-a", "plot-1", "woman")] {
+        jobs.insert(0, json!({"id":id,"resident_id":resident,"work":{"type":"plant_crop","plot_id":plot,"crop_id":"wheat"},"after":[],"inputs":[{"item_id":"wheat","quantity":1,"source":{"type":"stored"}}]}));
+    }
+    request
+}
+
+#[test]
+fn accepted_crop_growth_output_and_xp_terms_survive_catalog_change_and_reload() {
+    let catalog = CatalogDocument::default_catalog();
+    let mut farm = oven_farm(&catalog);
+    admit(&mut farm, &catalog, growing_chain("crop-terms"));
+    assert!(
+        farm.field_plots.iter().all(|plot| plot.crop.is_none()),
+        "fixture change must precede actual planting"
+    );
+    let mut reference = farm.clone();
+    complete(&mut reference, &catalog);
+    let mut changed = catalog.clone();
+    let crop = changed
+        .crops
+        .iter_mut()
+        .find(|crop| crop.item_id == "wheat")
+        .unwrap();
+    crop.reference_seconds *= 2;
+    crop.harvest_quantity = 5;
+    crop.xp += 7;
+    let mut restored: FarmState = serde_json::from_value(state(&farm)).unwrap();
+    complete(&mut restored, &changed);
+    assert_eq!(
+        state(&restored),
+        state(&reference),
+        "balance edits rewrote accepted plant/grow/harvest meaning"
+    );
+    let mut fresh = oven_farm(&changed);
+    admit(&mut fresh, &changed, growing_chain("new-crop-terms"));
+    complete(&mut fresh, &changed);
+    assert_eq!(
+        inventory_quantity(&fresh, "wheat"),
+        11,
+        "new planting/harvest must use changed5-unit yield"
+    );
+    assert_eq!(inventory_quantity(&fresh, "bread"), 1);
+    assert_eq!(
+        fresh.xp,
+        reference.xp + 14,
+        "new harvests must use changed cropXP"
+    );
+    assert!(
+        fresh.last_update_ms > reference.last_update_ms,
+        "new growth must use changed duration"
+    );
+}
+
+fn assert_admission_bounds(next_id: u64, time: i64) {
+    let catalog = CatalogDocument::default_catalog();
+    let mut saved = state(&oven_farm(&catalog));
+    saved["next_id"] = json!(next_id);
+    saved["last_update_ms"] = json!(time);
+    let mut farm: FarmState =
+        serde_json::from_value(saved).expect("valid public saved-state numeric boundary");
+    let before = state(&farm);
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        submit(&mut farm, &catalog, stored_chain("bounds"))
+    }));
+    let outcome = result.expect("public admission must reject arithmetic bounds, not panic");
+    assert!(!outcome.accepted, "unrepresentable accepted commitment");
+    let reason = outcome.error.unwrap().message.to_lowercase();
+    assert!(
+        ["overflow", "range", "capacity", "time", "identity", "id"]
+            .iter()
+            .any(|token| reason.contains(token)),
+        "unrelated bounds rejection: {reason}"
+    );
+    assert_eq!(state(&farm), before);
+    conserved(&farm);
+}
+#[test]
+fn concrete_admission_rejects_exhausted_identity_without_panic_or_partial_state() {
+    assert_admission_bounds(u64::MAX, 0);
+}
+#[test]
+fn concrete_admission_rejects_insufficient_remaining_id_range_atomically() {
+    assert_admission_bounds(u64::MAX - 1, 0);
+}
+#[test]
+fn concrete_admission_rejects_unrepresentable_time_without_panic_or_partial_state() {
+    assert_admission_bounds(10, i64::MAX - 100);
+}
+
+#[test]
+fn later_timestamp_arithmetic_rejection_preserves_legitimate_old_elapsed_progress() {
+    let catalog = CatalogDocument::default_catalog();
+    let mut farm = ripe_farm(&catalog);
+    accepted(
+        &mut farm,
+        &catalog,
+        FarmCommand::PlantCrop {
+            plot_id: "plot-3".into(),
+            crop_id: "wheat".into(),
+        },
+    );
+    farm.next_id = u64::MAX;
+    let mut farm: FarmState = serde_json::from_value(state(&farm)).unwrap();
+    let now = next_task(&farm).unwrap();
+    let mut elapsed = farm.clone();
+    apply_elapsed(&mut elapsed, &catalog, now);
+    assert_ne!(
+        state(&elapsed),
+        state(&farm),
+        "old accepted task must actually advance"
+    );
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let command: FarmCommand = serde_json::from_value(stored_chain("later-bounds")).unwrap();
+        apply_command(&mut farm, &catalog, command, now)
+    }));
+    let outcome =
+        result.expect("arithmetic admission must not panic after legitimate elapsed work");
+    assert!(!outcome.accepted);
+    let reason = outcome.error.unwrap().message.to_lowercase();
+    assert!(
+        ["overflow", "range", "identity", "id"]
+            .iter()
+            .any(|token| reason.contains(token)),
+        "unrelated rejection: {reason}"
+    );
+    assert_eq!(
+        state(&farm),
+        state(&elapsed),
+        "failed new admission changed already-elapsed authority state"
+    );
+    conserved(&farm);
+}
+
+#[test]
+fn accepted_planting_preserves_actual_grow_ready_deadline_before_harvest() {
+    let catalog = CatalogDocument::default_catalog();
+    let mut farm = oven_farm(&catalog);
+    admit(&mut farm, &catalog, growing_chain("growth-ready-terms"));
+    let mut reference = farm.clone();
+    advance_until(&mut reference, &catalog, |farm| {
+        farm.field_plots[0].crop.is_some()
+    });
+    let at = reference.last_update_ms;
+    let mut changed = catalog.clone();
+    changed
+        .crops
+        .iter_mut()
+        .find(|crop| crop.item_id == "wheat")
+        .unwrap()
+        .reference_seconds *= 2;
+    let mut restored: FarmState = serde_json::from_value(state(&farm)).unwrap();
+    apply_elapsed(&mut restored, &changed, at);
+    let expected = reference.field_plots[0].crop.as_ref().unwrap();
+    let actual = restored.field_plots[0]
+        .crop
+        .as_ref()
+        .expect("actual first planting completed");
+    assert_eq!(
+        actual, expected,
+        "accepted actual growing crop lost its original ready deadline"
+    );
+    assert!(
+        at < actual.ready_at_ms,
+        "oracle must inspect real growth before harvest"
+    );
+    conserved(&restored);
+}
+
+#[test]
+fn manual_discard_cannot_destroy_physically_deposited_reserved_future_inputs() {
+    let catalog = CatalogDocument::default_catalog();
+    let mut farm = ripe_farm(&catalog);
+    sell_stored_wheat(&mut farm, &catalog);
+    admit(&mut farm, &catalog, future_chain("physical-discard-inputs"));
+    advance_until(&mut farm, &catalog, |farm| {
+        inventory_quantity(farm, "wheat") == 4
+        && farm.resident_task_queues.values().flatten().flat_map(|task| &task.steps)
+            .any(|step| matches!(&step.work, ResidentTaskStepWork::PickupItems { items, .. } if items.iter().any(|item| item.item_id == "wheat" && item.quantity == 3)))
+    });
+    let before = state(&farm);
+    let now = farm.last_update_ms;
+    let discarded = apply_command(
+        &mut farm,
+        &catalog,
+        FarmCommand::DiscardInventory {
+            item_id: "wheat".into(),
+            quantity: 3,
+        },
+        now,
+    );
+    assert!(
+        !discarded.accepted,
+        "discard destroyed actual promised ingredients"
+    );
+    let reason = discarded.error.unwrap().message.to_lowercase();
+    assert!(
+        ["reserved", "available", "commit", "quantity"]
+            .iter()
+            .any(|token| reason.contains(token)),
+        "unrelated discard rejection: {reason}"
+    );
+    assert_eq!(state(&farm), before);
+    accepted(
+        &mut farm,
+        &catalog,
+        FarmCommand::DiscardInventory {
+            item_id: "wheat".into(),
+            quantity: 1,
+        },
+    );
+    complete(&mut farm, &catalog);
+    assert_eq!(inventory_quantity(&farm, "bread"), 1);
+    assert_eq!(inventory_quantity(&farm, "wheat"), 0);
+}

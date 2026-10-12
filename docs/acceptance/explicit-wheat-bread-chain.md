@@ -211,3 +211,65 @@ existing current-view app/legacy-stop fixtures receive empty concrete_chains onl
 The intentional old-chain fixture still omits this field. Both client protections
 (2chain+4stop) execute6PASS against current WIP; no casts or runtime normalization
 hacks were used to fit changed generated types.
+
+
+## Independent phase/unused-claim/crop/numeric supplement before next repair
+
+Current #225 body explicitly permits current or identified backed future inputs,
+requires phase-correct physical reservations and release of only unused claims,
+captures accepted new job meaning across catalogue edits, and requires bounded
+useful atomic failures. These supplemental expectations add no owner choice,
+automatic goal producer, inventory ledger or alternative cancellation controller.
+They are authored retrospectively relative to the first producer plus alias/
+readiness WIP, before the next functional repair. Frozen HEAD45cfcea with tracked
+producer WIP; concrete typesSHA97dfa4532765e30246c0b1c7df057293a5cf560719802eb4841b30bd3c61ae0d;
+engine concrete helperSHAe02ae0dde3adab32cf033e9c3d831d5a2986db56e92911eda08128c297adb5a4.
+
+Actual new baseline, not assumed failures:
+
+- Two separately bought current Wheat remain independent of a first chain's
+  three future-harvest-backed inputs. A second explicit two-Plant request should
+  use them while preserving old queues, but currently rejects as reserved.
+- Real elapsed deposits four harvested Wheat while the accepted three-Wheat
+  recipe pickup remains pending. Public Sell3 and Discard3 wrongly succeed,
+  stealing/destroying actual promised ingredients. They must reject atomically
+  while a one-unit unclaimed remainder stays usable. These guard public manual
+  mutations, not owner-authorized physical executor pickup.
+- Existing stop cancels the unused future Collect then still-pending Bake;
+  active producer Tool custody remains intact and no future Wheat is refunded.
+  Replacement input bindings to those still-queued real harvests should admit,
+  but currently reject from stale unused claims. Prior required-producer rejection
+  and safe active final cleanup/used-input preservation tests remain controlling.
+- Accepted Plant/Grow/Harvest meaning must survive changes to Wheat duration,
+  yield and XP through real reload. Current final XP becomes24 instead of10;
+  actual first planted crop ready_at becomes46000 instead of34000 despite the
+  same real22000 planting instant. Intermediate growth witness prevents a fake
+  final parity achieved by harvesting before the rewritten readiness. New requests
+  later must use changed5-unit yields/XP/duration; those late assertions UNRUN
+  while old accepted-work parity fails. Existing quantity snapshots alone do not
+  prove growth/XP grandfathering.
+- Valid public saved numeric faults next_id=u64MAX orMAX-1 currently panic on
+  identity increment. A later-time ID fault also panics AFTER real earlier accepted
+  task progression; correct rejection must equal independently elapsed baseline,
+  not freeze old promises. Near-i64MAX time is already GREEN with useful atomic
+  rejection. No wall-time budget or invented save format is asserted.
+
+Complete actual protected chain30 baseline21PASS/9RED; original20 remainGREEN,
+new time-boundaryGREEN, nine newly executed failures above. Manual3 and client6
+prior protections unchanged. Focused strict Rust Clippy/format/owned whitespace
+PASS. No production edits. Post-rejection resource release, legitimate current/
+remaining input admission, new-catalog behavior and deep rejection comparisons
+remain UNRUN where the first failing assertion prevents them; numerical failures
+are distinct from the earlier missing-API baseline. Full repository/WASM gates
+still required after the distinct producer repairs and freezes the implementation.
+
+Logs /tmp/farm225-next-complete-baseline.log;
+/tmp/farm225-input-phase-current-baseline.log;
+/tmp/farm225-input-phase-deposited-baseline.log;
+/tmp/farm225-input-discard-baseline.log;
+/tmp/farm225-unused-claims-baseline.log;
+/tmp/farm225-crop-terms-baseline.log;
+/tmp/farm225-grow-ready-baseline.log;
+/tmp/farm225-all-bounds-baseline.log;
+/tmp/farm225-later-bounds-baseline.log;
+/tmp/farm225-next-supplement-clippy.log.
