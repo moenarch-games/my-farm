@@ -48,7 +48,8 @@ const server = discover("apps/web/playwright.config.ts");
 assert.equal(server.filter((spec) => spec.file === "wheat-art.spec.ts").length, 0,
   "Browser-local WASM Wheat fixtures must not be dispatched to the server runtime");
 const shell = server.filter((spec) => spec.title === "renders the playable farm shell");
-assert.equal(shell.length, 1);
-assert.deepEqual(shell[0].tests.map((test) => test.projectName).sort(), ["desktop", "mobile"]);
-assert.ok(shell[0].tests.every((test) => test.expectedStatus === "passed"));
+const shellTests = shell.flatMap((spec) => spec.tests);
+assert.deepEqual(shellTests.map((test) => test.projectName).sort(), ["desktop", "mobile"]);
+assert.ok(shellTests.every((test) => test.expectedStatus === "passed"
+  && !test.annotations.some((annotation) => ["skip", "fixme"].includes(annotation.type))));
 console.log("Actual Playwright discovery preserves mandatory Pages Wheat and desktop/phone server shell coverage.");

@@ -15,6 +15,8 @@ Run `bun scripts/check-browser-runtime-ownership.ts`. It invokes actual Playwrig
 
 At baseline the Pages checks pass, then the ownership assertion fails: the server discovers four Wheat entries (two named cases in each desktop/mobile project). Discovery is not gameplay execution; its JSON list results carry no completed browser evidence.
 
+After the producer corrected configuration ownership, the previously unexecuted shell check exposed an author cardinality mistake: Playwright reports separate shell specifications per project. Retained default baseline discovery already has those same two entries. The independent mechanical correction flattens actual test records and requires exactly one desktop and one mobile shell, both required and without skip/fixme. No earlier shell-check pass is claimed; original server Wheat baseline remains genuinely red.
+
 ## Retained behavioral contracts
 
 The existing Wheat test must still verify pinned actual resources, early/mature/ready presentation at desktop and phone widths, matching icon, accepted Harvest while the crop is still ready, real Rust queue completion, increased Silo Wheat, empty plot and reload. Keep those assertions and actual command/deposit checks. Its authored timestamp inputs and offline Rust queue advancement remain fixture techniques, not proof of real elapsed production or server parity.
