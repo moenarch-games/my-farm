@@ -143,3 +143,23 @@ run the documented full repository gate. Source-side current pending recipe IDs
 alone do not snapshot terms; no test-first claim about future implementation or
 ready product follows from this contract. Closes only225 after actual verification;
 parents171/172/134/200 remain open.
+
+
+## Retrospective initial-custody oracle translation
+
+After the first producer WIP, the interval oracle's four-remaining-event assumption
+was disproven by actual public admission: zero-duration initial Woman PickupTools
+already executed at the Farmhouse; Woman holds Sickle1 and her remaining queue
+starts actual harvest, while the full calendar has one pickup/two returns. The
+original default c5d31ae engine already calls complete_resident_tasks(now) after
+successful command dispatch (engine473); this is not a new delayed-pickup policy.
+
+The independently authored translation initializes custody from every actual
+Resident inventory, tracks future pickup/return by Resident, forbids return by a
+nonholder and any aggregate custody above1, requires two real initial-or-future
+Sickle pickups and two returns, and retains actual end-to-end conservation. No
+production scheduling is changed. Current WIP actual translated interval1PASS;
+three manual characterizations PASS including a new real public immediate-pickup
+witness. The new characterization is authored retrospectively relative to WIP,
+not falsely claimed as preceding all implementation. This corrects the test oracle,
+not a numerical product defect; original downstream obligations remain intact.

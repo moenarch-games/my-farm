@@ -558,8 +558,23 @@ fn planned_limited_tool_custody_has_nonoverlapping_actual_pickup_and_return_inte
     let mut farm = ripe_farm(&catalog);
     sell_stored_wheat(&mut farm, &catalog);
     admit(&mut farm, &catalog, future_chain("intervals-one"));
-    let mut events: BTreeMap<my_farm_core::ToolKind, Vec<(i64, i64)>> = BTreeMap::new();
-    for queue in farm.resident_task_queues.values() {
+    let mut events: BTreeMap<my_farm_core::ToolKind, Vec<(i64, i64, String)>> = BTreeMap::new();
+    let initial: BTreeMap<_, BTreeMap<_, _>> = farm
+        .resident_inventories
+        .iter()
+        .map(|(resident, inventory)| {
+            (
+                resident.clone(),
+                inventory
+                    .tools
+                    .iter()
+                    .map(|(tool, quantity)| (*tool, i64::from(*quantity)))
+                    .collect(),
+            )
+        })
+        .collect();
+    conserved(&farm);
+    for (resident, queue) in &farm.resident_task_queues {
         for task in queue {
             let mut at = task.ready_at_ms;
             for (index, step) in task.steps.iter().enumerate() {
@@ -569,18 +584,20 @@ fn planned_limited_tool_custody_has_nonoverlapping_actual_pickup_and_return_inte
                 match &step.work {
                     ResidentTaskStepWork::PickupTools { tools, .. } => {
                         for tool in tools {
-                            events
-                                .entry(tool.tool_kind)
-                                .or_default()
-                                .push((at, i64::from(tool.quantity)));
+                            events.entry(tool.tool_kind).or_default().push((
+                                at,
+                                i64::from(tool.quantity),
+                                resident.clone(),
+                            ));
                         }
                     }
                     ResidentTaskStepWork::ReturnTools { tools, .. } => {
                         for tool in tools {
-                            events
-                                .entry(tool.tool_kind)
-                                .or_default()
-                                .push((at, -i64::from(tool.quantity)));
+                            events.entry(tool.tool_kind).or_default().push((
+                                at,
+                                -i64::from(tool.quantity),
+                                resident.clone(),
+                            ));
                         }
                     }
                     _ => {}
@@ -588,23 +605,56 @@ fn planned_limited_tool_custody_has_nonoverlapping_actual_pickup_and_return_inte
             }
         }
     }
-    assert!(
-        events
-            .get(&my_farm_core::ToolKind::Sickle)
-            .is_some_and(|events| events.len() >= 4),
-        "both actual harvests must have limited Sickle custody"
+    let sickle = my_farm_core::ToolKind::Sickle;
+    let initial_sickle: i64 = initial
+        .values()
+        .map(|tools| tools.get(&sickle).copied().unwrap_or(0))
+        .sum();
+    let sickle_events = events
+        .get(&sickle)
+        .expect("actual Sickle custody commitments");
+    assert_eq!(
+        initial_sickle
+            + sickle_events
+                .iter()
+                .filter(|(_, delta, _)| *delta > 0)
+                .map(|(_, delta, _)| delta)
+                .sum::<i64>(),
+        2,
+        "both assigned harvests require real initial or future Sickle pickup"
+    );
+    assert_eq!(
+        sickle_events
+            .iter()
+            .filter(|(_, delta, _)| *delta < 0)
+            .map(|(_, delta, _)| -delta)
+            .sum::<i64>(),
+        2,
+        "both assigned harvests must physically return the Sickle"
     );
     for (tool, mut events) in events {
         events.sort_unstable(); // return before pickup at equal timestamps
-        let mut custody = 0;
-        for (at, delta) in events {
-            custody += delta;
+        let mut ownership: BTreeMap<String, i64> = initial
+            .iter()
+            .map(|(resident, tools)| (resident.clone(), tools.get(&tool).copied().unwrap_or(0)))
+            .collect();
+        assert!((0..=1).contains(&ownership.values().sum::<i64>()));
+        for (at, delta, resident) in events {
+            let held = ownership.entry(resident).or_default();
+            *held += delta;
             assert!(
-                (0..=1).contains(&custody),
+                (0..=1).contains(held),
+                "{tool:?} returned by nonholder or duplicated pickup at{at}"
+            );
+            assert!(
+                (0..=1).contains(&ownership.values().sum::<i64>()),
                 "{tool:?} physical custody conflict at{at}"
             );
         }
-        assert_eq!(custody, 0, "{tool:?} missing physical return");
+        assert!(
+            ownership.values().all(|held| *held == 0),
+            "{tool:?} missing physical return"
+        );
     }
     complete(&mut farm, &catalog);
     conserved(&farm);

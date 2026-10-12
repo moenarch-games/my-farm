@@ -76,3 +76,36 @@ fn current_manual_collection_requires_readiness_and_physically_deposits_bread() 
             .all(|inventory| inventory.items.is_empty() && inventory.tools.is_empty())
     );
 }
+
+#[test]
+fn existing_manual_harvest_executes_zero_duration_tool_pickup_before_returning() {
+    let catalog = CatalogDocument::default_catalog();
+    let mut farm = ripe_farm(&catalog);
+    sell_stored_wheat(&mut farm, &catalog);
+    accepted(
+        &mut farm,
+        &catalog,
+        FarmCommand::HarvestCrop {
+            plot_id: "plot-1".into(),
+        },
+    );
+    assert_eq!(
+        farm.resident_inventories["woman"]
+            .tools
+            .get(&my_farm_core::ToolKind::Sickle),
+        Some(&1)
+    );
+    assert!(
+        farm.resident_task_queues["woman"][0]
+            .steps
+            .iter()
+            .any(|step| matches!(
+                step.work,
+                my_farm_core::ResidentTaskStepWork::HarvestCrop { .. }
+            ))
+    );
+    conserved(&farm);
+    finish_tasks(&mut farm, &catalog);
+    assert_eq!(inventory_quantity(&farm, "wheat"), 2);
+    assert!(farm.resident_inventories["woman"].tools.is_empty());
+}
