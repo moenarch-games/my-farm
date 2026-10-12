@@ -39,3 +39,33 @@ Reuse the independent existing `temporal_tool_admission.rs`15-case contract and 
 #129 remains the explicit prerequisite for **final protocol handling**. This technical child covers synchronous stable-identity state idempotence only. It does not establish lost-acknowledgement resolution, server-version/reconnect ambiguity, cross-Farm reset identity, journaling or transport exactly-once. #134 retains UI/recovery/direct-control/pause/resume and final protocol work. No player-facing cancellation route or Pages deployment is claimed by this core acceptance draft.
 
 #171/#172/#200 retain the full causal Wheat→Bread quantity/output/goal contract, autonomous processing intervals, shared-station admission and goal-effort progression accounting. This prerequisite does not invent a finite-goal API or claim a complete Bread chain. Original ordinary dirty checkout remains untouched. Production must be implemented in a distinct context after the committed acceptance handoff and draft exist.
+
+## Retrospective post-stop admission supplement
+
+Independent final audit of production `99791009ebccb7bf530340c8ebd14b7f22a70a87`
+reran the original20 stop,15 temporal Tool and9 harvest-deposit tests:44/44 GREEN.
+It found an executable coverage gap, not a demonstrated defect: pending stopped
+cleanup followed by new public admission and future reordering. After the
+separate mechanical normal-view fixture translation `f798682`, the independent
+acceptance author added `pending_stop_cleanup_survives_new_public_admission_and_future_reorder`
+before any further repair. Original20 expectations remain unchanged.
+
+This case obtains real Sickle custody through Plant/growth/SweepHarvest and
+actual elapsed deadlines, stops at the active Harvest step, then admits two real
+Plant tasks and reorders their stable identities with the public command. At
+each admission/reorder and reload, the complete stopped head Task must remain
+equal, including active step, start/deadline, stop flag and physical deposit/source
+return cleanup. Actual execution then proves only the active harvest completes,
+the future canceled plot stays planted, both later tasks complete, stock is
+conserved and the real deposit retains the original harvest identity. Baseline
+997 plus f798 is **GREEN** for this supplemental case, not a claimed failing
+regression or an implementation-preceding test. Log:
+`/tmp/farm221-independent-poststop.log`.
+
+No additional ordinary idle-carry fixture is asserted: existing direct fixture
+coverage creates carry by state mutation, whereas this supplement requires
+actual public-command provenance. No independently established ordinary command
+sequence leaves idle carry for the changed per-step scheduling branch; that
+specific characterization remains a source-audit limitation rather than a
+fabricated outcome or new cadence requirement. Existing stopped delayed/stepwise
+and normal temporal-tool parity contracts passed unchanged.

@@ -716,3 +716,62 @@ fn exceptional_saved_cleanup_target_fault_is_visible_and_recovers_without_remote
     finish(&mut farm, &catalog);
     assert_eq!(inventory_quantity(&farm, "wheat"), 7);
 }
+
+#[test]
+fn pending_stop_cleanup_survives_new_public_admission_and_future_reorder() {
+    let catalog = CatalogDocument::default_catalog();
+    let mut farm = harvest_fixture(&catalog, &["plot-1", "plot-2"]);
+    advance_to(&mut farm, &catalog, |work| {
+        matches!(work, ResidentTaskStepWork::HarvestCrop { .. })
+    });
+    assert_eq!(
+        farm.resident_inventories["woman"].tools[&ToolKind::Sickle],
+        1
+    );
+    let id = task_id(&farm);
+    stop_accepted(&mut farm, &catalog, &id);
+    let stopped = farm.resident_task_queues["woman"][0].clone();
+    assert!(stopped.stop_requested);
+    assert!(
+        stopped
+            .steps
+            .iter()
+            .any(|step| matches!(step.work, ResidentTaskStepWork::DepositItems { .. }))
+    );
+    assert!(
+        stopped
+            .steps
+            .iter()
+            .any(|step| matches!(step.work, ResidentTaskStepWork::ReturnTools { .. }))
+    );
+    plant(&mut farm, &catalog, "plot-3");
+    assert_eq!(farm.resident_task_queues["woman"][0], stopped);
+    let first = farm.resident_task_queues["woman"][1].id.clone();
+    plant(&mut farm, &catalog, "plot-4");
+    assert_eq!(farm.resident_task_queues["woman"][0], stopped);
+    let second = farm.resident_task_queues["woman"][2].id.clone();
+    accepted(
+        &mut farm,
+        &catalog,
+        FarmCommand::ReorderResidentTask {
+            resident_id: "woman".into(),
+            task_id: second.clone(),
+            before_task_id: Some(first.clone()),
+        },
+    );
+    assert_eq!(farm.resident_task_queues["woman"][0], stopped);
+    assert_eq!(farm.resident_task_queues["woman"][1].id, second);
+    assert_eq!(farm.resident_task_queues["woman"][2].id, first);
+    farm = reload(&farm);
+    assert_eq!(farm.resident_task_queues["woman"][0], stopped);
+    finish(&mut farm, &catalog);
+    assert!(!crop_exists(&farm, "plot-1"));
+    assert!(
+        crop_exists(&farm, "plot-2"),
+        "canceled future harvest must never run"
+    );
+    assert!(crop_exists(&farm, "plot-3") && crop_exists(&farm, "plot-4"));
+    assert_eq!(inventory_quantity(&farm, "wheat"), 4);
+    assert_eq!(farm.resident_last_harvest_deposit["woman"].task_id, id);
+    conserved(&farm);
+}
