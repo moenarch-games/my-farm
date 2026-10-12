@@ -9,6 +9,22 @@ import { normalizeFarmView, normalizeFarmResponse, normalizeCommandResponse } fr
 type LegacyWork = Omit<ResidentWorkView, "stop_requested"> & { stop_requested?: boolean };
 function legacyFixture() {
   const view = fixture();
+  // Meaningful current wire state: this is a normalization fixture, not a
+  // claimed command-execution trace. Replacing it with idle defaults must fail.
+  const resident = view.resident_work.woman!;
+  resident.display_name = "Marta";
+  resident.state = "working";
+  resident.scene = { tile: { x: 11, y: 12 }, path: [{ x: 10, y: 12 }, { x: 11, y: 12 }], inside_house: false };
+  resident.carry = { items: [{ item_id: "wheat", name: "Wheat", quantity: 3, kind: "crop" }],
+                     tools: [{ tool_kind: "sickle", label: "Sickle", quantity: 1 }] };
+  const step = { label: "Harvest Wheat", activity: "harvesting", prop: "basket",
+    quantity: 3, kind: "crop", walk_duration_ms: 1000, work_duration_ms: 2000, duration_ms: 3000 } satisfies NonNullable<ResidentWorkView["current_step"]>;
+  resident.current_step = step;
+  resident.current_task = { id: "retained-harvest", kind: { type: "field_work" }, label: "Harvest Wheat",
+    step_count: 1, steps: [step], preview: { path: [{ x: 11, y: 12 }] }, queue_state: "current",
+    started_at_ms: 1000, ready_at_ms: 4000 };
+  resident.queue = [{ ...resident.current_task, id: "retained-next-harvest", queue_state: "queued",
+                      started_at_ms: 4000, ready_at_ms: 7000 }];
   const { stop_requested: _flag, ...entry } = view.resident_work.woman!;
   const work: Record<string, LegacyWork> = { ...view.resident_work, woman: entry };
   return { ...view, resident_work: work };

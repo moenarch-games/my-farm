@@ -96,3 +96,9 @@ FarmView rather than raw Farm state. Both response adapters delegate to the one
 public view normalizer. No broad malformed-JSON validation or new stop policy is
 introduced. Shared conventions resolve sourceRevision
 `46d8793bb3034326561f876dcc67dbaa5aa1e432`.
+
+The legacy entry preservation fixture is deliberately nondefault: named resident,
+working state, current and future harvest task identities/deadlines, step metadata,
+nondefault scene/path and carried wheat/sickle. Replacing the whole map with idle
+defaults cannot satisfy its exact state comparison. These are valid wire-shape
+fixtures for normalization, not a claimed actual gameplay-command trace.
