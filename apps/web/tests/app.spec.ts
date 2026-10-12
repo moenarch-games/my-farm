@@ -13,7 +13,6 @@ test("renders the playable farm shell", async ({ page }, testInfo) => {
   await startFarm(page);
 
   await expect(page.getByRole("dialog", { name: "Guided Tutorial" })).toHaveCount(0);
-  await expect(page.getByText("My Farm")).toBeVisible();
   await expect(page.getByTestId("level-progress-badge")).toHaveAttribute("aria-label", /Level 1/);
 
   if (testInfo.project.name === "mobile") {
@@ -21,7 +20,9 @@ test("renders the playable farm shell", async ({ page }, testInfo) => {
     await expect(mobileActions).toBeVisible();
     await expect(mobileActions.getByRole("button", { name: "Plant" })).toBeVisible();
     await expect(mobileActions.getByRole("button", { name: "Build" })).toBeVisible();
+    await expect(page.getByLabel("Field Plot plot-1")).toBeVisible();
   } else {
+    await expect(page.getByText("My Farm")).toBeVisible();
     await expect(page.getByRole("toolbar", { name: "Interaction Tools" })).toBeVisible();
     await expect(page.locator(".interaction-tools").getByRole("button", { name: "Seed" })).toBeVisible();
     await expect(page.locator(".interaction-tools").getByRole("button", { name: "Build" })).toBeVisible();
