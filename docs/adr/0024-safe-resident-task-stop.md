@@ -37,6 +37,11 @@ items and Tools intact and expose a recoverable block. Repair retries the same
 Step. Normal accepted production retains its existing storage-reservation
 semantics; this change does not redefine capacity for unrelated work.
 
+Legacy client response normalization defaults an omitted resident-entry
+`stop_requested` to false while retaining explicit flags and the existing work
+state. Only the legacy boundary permits omission; normalized Farm views expose
+the current boolean contract.
+
 The independent contracts are
 `crates/my_farm_core/tests/resident_task_stop.rs` and
 [their acceptance specification](../acceptance/resident-task-stop.md), together

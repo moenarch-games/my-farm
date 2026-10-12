@@ -53,6 +53,9 @@ export type FarmClientPlatform = {
   WebSocket: typeof WebSocket;
 };
 
+type LegacyResidentWorkView = Omit<ResidentWorkView, "stop_requested"> &
+  Partial<Pick<ResidentWorkView, "stop_requested">>;
+
 export type LegacyFarmView = Omit<
   FarmView,
   | "silo_tile"
@@ -71,7 +74,7 @@ export type LegacyFarmView = Omit<
   residents?: FarmResident[] | null;
   selected_resident_id?: string | null;
   resident_locations?: FarmView["resident_locations"] | null;
-  resident_work?: FarmView["resident_work"] | null;
+  resident_work?: { [key in string]?: LegacyResidentWorkView } | null;
   reservations?: FarmView["reservations"] | null;
   farm_shop?: LegacyFarmShopView | null;
 };
@@ -303,7 +306,7 @@ export function normalizeFarmView(view: LegacyFarmView): FarmView {
     ? { ...defaultResidentLocationsFor(residents), ...view.resident_locations }
     : defaultResidentLocationsFor(residents);
   const residentWork = validResidentWork(view.resident_work)
-    ? view.resident_work
+    ? normalizeResidentWork(view.resident_work)
     : defaultResidentWorkFor(residents, selectedResidentId ?? "woman", residentLocations);
 
   return {
@@ -354,9 +357,20 @@ function validResidentLocations(
 }
 
 function validResidentWork(
-  work: FarmView["resident_work"] | null | undefined,
-): work is FarmView["resident_work"] {
+  work: LegacyFarmView["resident_work"],
+): work is NonNullable<LegacyFarmView["resident_work"]> {
   return work !== undefined && work !== null && typeof work === "object";
+}
+
+function normalizeResidentWork(
+  work: NonNullable<LegacyFarmView["resident_work"]>,
+): FarmView["resident_work"] {
+  return Object.fromEntries(Object.entries(work).map(([residentId, entry]) => {
+    if (entry === undefined) {
+      return [residentId, undefined];
+    }
+    return [residentId, { ...entry, stop_requested: entry.stop_requested ?? false }];
+  }));
 }
 
 function defaultResidentLocationsFor(residents: FarmResident[]): FarmView["resident_locations"] {
