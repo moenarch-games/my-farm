@@ -11,13 +11,23 @@ const titles = [
   "Wheat appearance follows planted Crop state through progress, harvest and reload",
 ];
 
-function discover(config) {
+type DiscoveredTest = {
+  expectedStatus: string;
+  projectName: string;
+  annotations: Array<{ type: string }>;
+};
+type DiscoveredSpec = { title: string; file: string; tests: DiscoveredTest[] };
+type DiscoveredSuite = { specs?: DiscoveredSpec[]; suites?: DiscoveredSuite[] };
+type DiscoveryReport = { errors: unknown[]; suites: DiscoveredSuite[] };
+
+function discover(config: string): DiscoveredSpec[] {
   const report = JSON.parse(execFileSync(process.execPath, [cli, "test", "--config", config, "--list", "--reporter=json"], {
     cwd: root,
     encoding: "utf8",
-  }));
+    timeout: 30_000,
+  })) as DiscoveryReport;
   assert.deepEqual(report.errors, [], `${config}: discovery must succeed`);
-  function specs(suites) {
+  function specs(suites: DiscoveredSuite[]): DiscoveredSpec[] {
     return suites.flatMap((suite) => [...(suite.specs ?? []), ...specs(suite.suites ?? [])]);
   }
   return specs(report.suites);

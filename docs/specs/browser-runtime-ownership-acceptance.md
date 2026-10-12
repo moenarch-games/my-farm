@@ -11,7 +11,7 @@ Atlas 1.1.1, 1.2.1 and 1.4.1 require real Pages play, readable phone crops and a
 
 ## Executable discovery contract
 
-Run `node scripts/check-browser-runtime-ownership.mjs`. It invokes actual Playwright JSON discovery for both existing configurations; it does not reproduce their testMatch rules. Both named Wheat cases must remain required Pages tests with no skip/fixme, and the server configuration must not dispatch the browser-local fixture. The real server shell remains required for both desktop and mobile.
+Run `bun scripts/check-browser-runtime-ownership.ts`. It invokes actual Playwright JSON discovery for both existing configurations; it does not reproduce their testMatch rules. Both named Wheat cases must remain required Pages tests with no skip/fixme, and the server configuration must not dispatch the browser-local fixture. The real server shell remains required for both desktop and mobile.
 
 At baseline the Pages checks pass, then the ownership assertion fails: the server discovers four Wheat entries (two named cases in each desktop/mobile project). Discovery is not gameplay execution; its JSON list results carry no completed browser evidence.
 
