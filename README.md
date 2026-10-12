@@ -4,7 +4,7 @@ See [the Decision Atlas](docs/decisions/atlas.md) for the single append-only Mar
 
 My Farm is a standalone local farming sim. In local development, a Rust server owns the farm state, persists it to SQLite, and exposes a small JSON API consumed by a browser client rendered with React Three Fiber.
 
-GitHub Pages serves a browser-only demo that runs an early production slice through Rust WebAssembly. The demo is static, saves progress in browser localStorage, and intentionally does not include every local-server feature.
+GitHub Pages **currently** serves a restricted browser-local Rust/WASM subset that saves in localStorage. The [approved current target](docs/decisions/atlas.md) ([#126](https://github.com/moritzbrantner/my-farm/issues/126), [#153](https://github.com/moritzbrantner/my-farm/issues/153)) is full *eligible single-player* parity, delivered incrementally as real Pages gameplay slices. Existing omissions are unfinished integration, not a permanently accepted demo-only product.
 
 ## Run
 
@@ -73,7 +73,7 @@ Build the static Pages demo locally:
 bun run build:pages
 ```
 
-The Pages demo uses `VITE_MY_FARM_RUNTIME=wasm_demo`, compiles `crates/my_farm_wasm` with `wasm-pack`, and bundles the generated WASM through Vite. It supports fields, Wheat, Corn, the Farmhouse Oven, Bread, storage display, reset, and browser-local saves. It intentionally does not expose later local-server features such as Tool Shed construction or the Farm Shop.
+The Pages demo uses `VITE_MY_FARM_RUNTIME=wasm_demo`, compiles `crates/my_farm_wasm` with `wasm-pack`, and bundles the generated WASM through Vite. It supports fields, Wheat, Corn, the Farmhouse Oven, Bread, storage display, reset, and browser-local saves. It does **not yet** expose local-server features such as Tool Shed construction or the Farm Shop. These are remaining Pages integration gaps, not permanent product exclusions.
 
 In the local full game, the Farm Shop is a buildable road-edge Structure. Farm Residents move sellable Shop Stock into and out of the shop through queued Resident Tasks, and Customer Visits can passively buy one unreserved stocked item for coins. Delivery Orders remain the coins-and-XP objective.
 
@@ -108,7 +108,7 @@ discovery; executing both suites supplies the behavioral evidence.
 ## Design Constraints
 
 - Local server authoritative.
-- GitHub Pages demo is browser-local and intentionally feature-limited.
+- GitHub Pages currently runs a feature-limited browser-local WASM subset; full eligible single-player Pages parity is the current approved goal (Decision Atlas 1.1.1).
 - Single local farm.
 - No real-money purchases.
 - No premium currency.
