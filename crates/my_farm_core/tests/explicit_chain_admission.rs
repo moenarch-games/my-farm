@@ -1486,3 +1486,243 @@ fn bake_only_admission_rejects_unrepresentable_accepted_oven_deadline() {
             .contains("overflow")
     );
 }
+
+#[test]
+fn delayed_actual_plant_preserves_real_growth_before_harvest_work() {
+    let catalog = CatalogDocument::default_catalog();
+    let mut farm = oven_farm(&catalog);
+    admit(
+        &mut farm,
+        &catalog,
+        json!({"type":"admit_concrete_chain","chain_id":"delayed-plant","jobs":[{"id":"plant","resident_id":"woman","work":{"type":"plant_crop","plot_id":"plot-1","crop_id":"corn"},"after":[],"inputs":[{"item_id":"corn","quantity":1,"source":{"type":"stored"}}]},{"id":"harvest","resident_id":"woman","work":{"type":"harvest_crop","plot_id":"plot-1"},"after":["plant"],"inputs":[]}]}),
+    );
+    advance_until(&mut farm, &catalog, |farm| {
+        matches!(
+            farm.resident_task_queues["woman"]
+                .first()
+                .and_then(|t| t.steps.first())
+                .map(|s| &s.work),
+            Some(ResidentTaskStepWork::PlantCrop { .. })
+        )
+    });
+    let old = farm.resident_task_queues["woman"][0].ready_at_ms;
+    let mut saved = state(&farm);
+    saved["resident_task_queues"]["woman"][0]["ready_at_ms"] = json!(old + 60_000);
+    let mut farm: FarmState = serde_json::from_value(saved).unwrap();
+    apply_elapsed(&mut farm, &catalog, old + 60_000);
+    let ready = farm
+        .field_plots
+        .iter()
+        .find(|p| p.id == "plot-1")
+        .unwrap()
+        .crop
+        .as_ref()
+        .expect("actual delayed planting")
+        .ready_at_ms;
+    let growth = my_farm_core::scaled_duration_ms(
+        catalog.crop("corn").unwrap().reference_seconds,
+        catalog.balance.time_scale,
+    );
+    assert_eq!(ready, old + 60_000 + growth);
+    apply_elapsed(&mut farm, &catalog, ready - 1);
+    assert!(
+        farm.field_plots
+            .iter()
+            .find(|p| p.id == "plot-1")
+            .unwrap()
+            .crop
+            .is_some(),
+        "actual delayed crop harvested before accepted growth deadline"
+    );
+    assert!(
+        farm.blocked_resident_tasks.is_empty(),
+        "waiting on growth must retain custody rather than ordinary blocking"
+    );
+    complete(&mut farm, &catalog);
+    assert!(
+        farm.field_plots
+            .iter()
+            .find(|p| p.id == "plot-1")
+            .unwrap()
+            .crop
+            .is_none()
+    );
+    conserved(&farm);
+}
+
+#[test]
+fn public_reorder_cannot_move_bound_consumer_before_its_same_resident_producer() {
+    let catalog = CatalogDocument::default_catalog();
+    let mut farm = oven_farm(&catalog);
+    accepted(
+        &mut farm,
+        &catalog,
+        FarmCommand::PlantCrop {
+            plot_id: "plot-3".into(),
+            crop_id: "wheat".into(),
+        },
+    );
+    let mut request = stored_chain("reorder-dependency");
+    request["jobs"][1]["resident_id"] = json!("woman");
+    admit(&mut farm, &catalog, request);
+    let jobs = &farm.concrete_chains["reorder-dependency"].jobs;
+    let consumer = jobs["collect"].task_ids[0].clone();
+    let producer = jobs["bake"].task_ids[0].clone();
+    // Existing public append gives the producer a future slot rather than trying
+    // to move ahead of an already active first task.
+    let before = state(&farm);
+    let now = farm.last_update_ms;
+    let result = apply_command(
+        &mut farm,
+        &catalog,
+        FarmCommand::ReorderResidentTask {
+            resident_id: "woman".into(),
+            task_id: consumer,
+            before_task_id: Some(producer),
+        },
+        now,
+    );
+    assert!(
+        !result.accepted,
+        "public reorder placed dependent consumer before its producer"
+    );
+    assert_eq!(state(&farm), before);
+    let reason = result.error.unwrap().message.to_lowercase();
+    assert!(
+        ["depend", "conflict", "current", "active"]
+            .iter()
+            .any(|s| reason.contains(s)),
+        "unrelated rejection: {reason}"
+    );
+}
+
+#[test]
+fn public_reorder_cannot_break_intrinsic_collect_dependency_without_after() {
+    let catalog = CatalogDocument::default_catalog();
+    let mut farm = oven_farm(&catalog);
+    accepted(
+        &mut farm,
+        &catalog,
+        FarmCommand::PlantCrop {
+            plot_id: "plot-3".into(),
+            crop_id: "wheat".into(),
+        },
+    );
+    let mut request = stored_chain("reorder-dependency");
+    request["jobs"][1]["resident_id"] = json!("woman");
+    request["jobs"][1]["after"] = json!([]);
+    admit(&mut farm, &catalog, request);
+    let jobs = &farm.concrete_chains["reorder-dependency"].jobs;
+    let consumer = jobs["collect"].task_ids[0].clone();
+    let producer = jobs["bake"].task_ids[0].clone();
+    // Existing public append gives the producer a future slot rather than trying
+    // to move ahead of an already active first task.
+    let before = state(&farm);
+    let now = farm.last_update_ms;
+    let result = apply_command(
+        &mut farm,
+        &catalog,
+        FarmCommand::ReorderResidentTask {
+            resident_id: "woman".into(),
+            task_id: consumer,
+            before_task_id: Some(producer),
+        },
+        now,
+    );
+    assert!(
+        !result.accepted,
+        "public reorder placed dependent consumer before its producer"
+    );
+    assert_eq!(state(&farm), before);
+    let reason = result.error.unwrap().message.to_lowercase();
+    assert!(
+        ["depend", "conflict", "current", "active"]
+            .iter()
+            .any(|s| reason.contains(s)),
+        "unrelated rejection: {reason}"
+    );
+}
+
+#[test]
+fn already_started_harvest_waits_for_actual_crop_ready_without_losing_custody() {
+    let catalog = CatalogDocument::default_catalog();
+    let mut farm = oven_farm(&catalog);
+    accepted(
+        &mut farm,
+        &catalog,
+        FarmCommand::PlantCrop {
+            plot_id: "plot-1".into(),
+            crop_id: "corn".into(),
+        },
+    );
+    finish_tasks(&mut farm, &catalog);
+    let ready = farm
+        .field_plots
+        .iter()
+        .find(|p| p.id == "plot-1")
+        .unwrap()
+        .crop
+        .as_ref()
+        .unwrap()
+        .ready_at_ms;
+    apply_elapsed(&mut farm, &catalog, ready);
+    admit(
+        &mut farm,
+        &catalog,
+        json!({"type":"admit_concrete_chain","chain_id":"started-harvest","jobs":[{"id":"harvest","resident_id":"woman","work":{"type":"harvest_crop","plot_id":"plot-1"},"after":[],"inputs":[]}]}),
+    );
+    advance_until(&mut farm, &catalog, |farm| {
+        matches!(
+            farm.resident_task_queues["woman"]
+                .first()
+                .and_then(|t| t.steps.first())
+                .map(|s| &s.work),
+            Some(ResidentTaskStepWork::HarvestCrop { .. })
+        )
+    });
+    let deadline = farm.resident_task_queues["woman"][0].ready_at_ms;
+    assert_eq!(
+        farm.resident_inventories["woman"]
+            .tools
+            .get(&my_farm_core::ToolKind::Sickle),
+        Some(&1)
+    );
+    let before_corn = inventory_quantity(&farm, "corn");
+    let mut saved = state(&farm);
+    let plot = saved["field_plots"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|p| p["id"] == "plot-1")
+        .unwrap();
+    plot["crop"]["ready_at_ms"] = json!(deadline + 60_000);
+    let mut farm: FarmState = serde_json::from_value(saved).unwrap();
+    apply_elapsed(&mut farm, &catalog, deadline);
+    assert!(
+        farm.field_plots
+            .iter()
+            .find(|p| p.id == "plot-1")
+            .unwrap()
+            .crop
+            .is_some(),
+        "started Harvest ignored actual crop readiness"
+    );
+    assert_eq!(inventory_quantity(&farm, "corn"), before_corn);
+    assert_eq!(
+        farm.resident_inventories["woman"]
+            .tools
+            .get(&my_farm_core::ToolKind::Sickle),
+        Some(&1)
+    );
+    assert!(farm.blocked_resident_tasks.is_empty());
+    complete(&mut farm, &catalog);
+    assert!(
+        farm.field_plots
+            .iter()
+            .find(|p| p.id == "plot-1")
+            .unwrap()
+            .crop
+            .is_none()
+    );
+    conserved(&farm);
+}

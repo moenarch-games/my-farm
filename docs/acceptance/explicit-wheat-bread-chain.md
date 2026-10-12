@@ -304,3 +304,37 @@ behavior rather than a second inventory ledger, clock, or executor.
 Baseline evidence: `/tmp/farm225-final-adjacent-baseline.log`; accepted Plant and
 Bake were advanced through actual steps to characterize the executor overflow.
 After a correct early rejection those diagnostic branches do not execute.
+
+### Retrospective review closure at `72a67e11`
+
+Four additive public regressions were independently authored after the completed
+implementation and before its next repair, for findings `4244629817` and
+`4244629826`. Baseline `/tmp/farm225-review-regressions-baseline.log` executes
+39 cases: original 35 PASS, new four RED. No old assertion was weakened.
+
+A real default Corn Plant/Harvest chain has its actual active planting work
+completion delayed 60000 ms through accepted Farm serialization. Actual planting
+establishes the unchanged accepted growth deadline. At that deadline minus one,
+the crop must remain on the Plot, with no ordinary blocked state; it then finishes
+through the real executor and physical storage. This reproduces premature harvest
+in the baseline. The initial Wheat characterization passed because its shorter
+growth was already covered by physical cleanup; that was not classified as RED.
+A separate already-started actual Corn harvest, holding the sole Sickle, reloads
+with actual crop readiness delayed past its existing work deadline. Waiting must
+retain the crop/custody and produce no stock or ordinary blocked state, then
+finish physically at actual readiness. This independently reproduces the direct
+executor boundary, rather than only a waiting-task forecast.
+
+Public reorder of a future same-Resident Collect before its pending Bake must
+reject atomically with a useful dependency/conflict reason. The real current
+ordinary Plant establishes a genuine future queue; explicit `after` and implicit
+Collect `producer_id`-only variants both reproduce wrongful acceptance. The
+initial Harvest/Sickle variant rejected through a legitimate Tool conflict and
+was not counted as this defect. Existing positive legacy reorder tests remain
+mandatory; the repair must not disable all reorders. Local job declaration and
+physical crop dependencies must be preserved without a duplicate scheduler.
+
+Later successful completion/atomic rejection assertions are UNRUN in the four
+failing baseline cases. These are retrospective review regressions, not a claim
+that they preceded the initial implementation or constitute automatic goal/UI
+acceptance.
