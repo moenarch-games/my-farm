@@ -1311,3 +1311,178 @@ fn manual_discard_cannot_destroy_physically_deposited_reserved_future_inputs() {
     assert_eq!(inventory_quantity(&farm, "bread"), 1);
     assert_eq!(inventory_quantity(&farm, "wheat"), 0);
 }
+
+// Retrospective adjacent contracts on the code-complete #225 WIP, before repair.
+#[test]
+fn implicit_collect_producer_dependency_protects_pending_bake_from_cancellation() {
+    let catalog = CatalogDocument::default_catalog();
+    let mut farm = ripe_farm(&catalog);
+    sell_stored_wheat(&mut farm, &catalog);
+    let mut request = future_chain("implicit-collect");
+    request["jobs"][3]["after"] = json!([]);
+    admit(&mut farm, &catalog, request);
+    let id = farm.concrete_chains["implicit-collect"].jobs["bake"].task_ids[0].clone();
+    let before = state(&farm);
+    let now = farm.last_update_ms;
+    let result = apply_command(
+        &mut farm,
+        &catalog,
+        FarmCommand::CancelResidentTask {
+            resident_id: "woman".into(),
+            task_id: id,
+        },
+        now,
+    );
+    assert!(
+        !result.accepted,
+        "cancel removed producer of an accepted implicit Collect dependency"
+    );
+    assert_eq!(state(&farm), before);
+    assert!(
+        result
+            .error
+            .unwrap()
+            .message
+            .to_lowercase()
+            .contains("depend")
+    );
+}
+
+#[test]
+fn canceling_unused_collect_allows_replacement_collection_of_same_pending_bake() {
+    let catalog = CatalogDocument::default_catalog();
+    let mut farm = ripe_farm(&catalog);
+    sell_stored_wheat(&mut farm, &catalog);
+    admit(&mut farm, &catalog, future_chain("replace-collect"));
+    let id = farm.concrete_chains["replace-collect"].jobs["collect"].task_ids[0].clone();
+    accepted(
+        &mut farm,
+        &catalog,
+        FarmCommand::CancelResidentTask {
+            resident_id: "man".into(),
+            task_id: id,
+        },
+    );
+    // Local producer references are scoped to a chain. A newly admitted chain cannot
+    // name the old Bake through Collect's current wire shape; exercise replacement
+    // through the already-existing public manual Collect after actual readiness.
+    finish_tasks(&mut farm, &catalog);
+    let ready = farm.oven.queue[0].ready_at_ms;
+    let now = ready.max(farm.last_update_ms);
+    apply_elapsed(&mut farm, &catalog, now);
+    accepted(&mut farm, &catalog, FarmCommand::CollectOvenJob);
+    finish_tasks(&mut farm, &catalog);
+    assert_eq!(inventory_quantity(&farm, "bread"), 1);
+}
+
+#[test]
+fn plant_only_admission_rejects_unrepresentable_accepted_growth_deadline() {
+    let catalog = CatalogDocument::default_catalog();
+    let mut saved = state(&oven_farm(&catalog));
+    saved["last_update_ms"] = json!(i64::MAX - 40_000);
+    let mut farm: FarmState = serde_json::from_value(saved).unwrap();
+    let before = state(&farm);
+    let request = json!({"type":"admit_concrete_chain","chain_id":"plant-bound","jobs":[
+        {"id":"plant","resident_id":"woman","work":{"type":"plant_crop","plot_id":"plot-1","crop_id":"corn"},"after":[],"inputs":[{"item_id":"corn","quantity":1,"source":{"type":"stored"}}]}
+    ]});
+    let outcome = submit(&mut farm, &catalog, request);
+    if outcome.accepted {
+        let actual = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            finish_tasks(&mut farm, &catalog);
+        }));
+        eprintln!(
+            "baseline accepted Plant execution panic: {}",
+            actual.is_err()
+        );
+    }
+    assert!(
+        !outcome.accepted,
+        "accepted Plant-only commitment whose growth deadline overflows"
+    );
+    assert_eq!(state(&farm), before);
+    assert!(
+        outcome
+            .error
+            .unwrap()
+            .message
+            .to_lowercase()
+            .contains("overflow")
+    );
+}
+
+#[test]
+fn ordinary_machine_recipe_cannot_steal_deposited_concrete_inputs() {
+    let catalog = CatalogDocument::default_catalog();
+    let mut farm = ripe_farm(&catalog);
+    farm.xp = 14;
+    farm.level = catalog.level_for_xp(farm.xp);
+    accepted(
+        &mut farm,
+        &catalog,
+        FarmCommand::BuyStructure {
+            structure_kind: my_farm_core::StructureKind::FeedMill,
+            tile: my_farm_core::Tile::new(4, 1),
+        },
+    );
+    let machine_id = farm.machines[0].id.clone();
+    sell_stored_wheat(&mut farm, &catalog);
+    admit(&mut farm, &catalog, future_chain("machine-conflict"));
+    advance_until(&mut farm, &catalog, |farm| {
+        inventory_quantity(farm,"wheat")==4 && farm.resident_task_queues.values().flatten().flat_map(|t| &t.steps).any(|step| matches!(&step.work,ResidentTaskStepWork::PickupItems {items,..} if items.iter().any(|item| item.item_id=="wheat"&&item.quantity==3)))
+    });
+    let before = state(&farm);
+    let now = farm.last_update_ms;
+    let outcome = apply_command(
+        &mut farm,
+        &catalog,
+        FarmCommand::QueueRecipe {
+            machine_id,
+            recipe_id: "chicken_feed".into(),
+        },
+        now,
+    );
+    assert!(
+        !outcome.accepted,
+        "ordinary machine consumed two Wheat when only one is unclaimed"
+    );
+    assert_eq!(state(&farm), before);
+    let reason = outcome.error.unwrap().message.to_lowercase();
+    assert!(
+        reason.contains("reserved") || reason.contains("available"),
+        "unrelated failure: {reason}"
+    );
+}
+
+#[test]
+fn bake_only_admission_rejects_unrepresentable_accepted_oven_deadline() {
+    let catalog = CatalogDocument::default_catalog();
+    let mut saved = state(&oven_farm(&catalog));
+    saved["last_update_ms"] = json!(i64::MAX - 40_000);
+    let mut farm: FarmState = serde_json::from_value(saved).unwrap();
+    let before = state(&farm);
+    let mut request = stored_chain("bake-bound");
+    request["jobs"].as_array_mut().unwrap().pop();
+    let outcome = submit(&mut farm, &catalog, request);
+    if outcome.accepted {
+        let actual = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            finish_tasks(&mut farm, &catalog)
+        }));
+        eprintln!(
+            "baseline accepted Bake execution panic: {}",
+            actual.is_err()
+        );
+    }
+    assert!(
+        !outcome.accepted,
+        "accepted Bake-only commitment whose oven deadline overflows"
+    );
+    assert_eq!(state(&farm), before);
+    assert!(
+        outcome
+            .error
+            .unwrap()
+            .message
+            .to_lowercase()
+            .contains("overflow")
+    );
+}

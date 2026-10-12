@@ -273,3 +273,34 @@ Logs /tmp/farm225-next-complete-baseline.log;
 /tmp/farm225-all-bounds-baseline.log;
 /tmp/farm225-later-bounds-baseline.log;
 /tmp/farm225-next-supplement-clippy.log.
+
+### Retrospective final-source adjacency (before the next repair)
+
+The next five tests were authored against protected HEAD `68ac056` plus the
+code-complete, uncommitted producer source. Engine SHA-256 was
+`e683ebf9b9fc4b627c4981089ea6cd19f940eb587fe8f3872d7f54d43c0f3fed`;
+admission module SHA-256 was
+`b3bbe7db43d91d843d8e2802e8e7c28583af83d760846040b6eb1e87d0d981a0`.
+This is retrospective supplementation, not a claim of preimplementation authorship.
+
+Actual public-command failures were reproduced: an accepted Collect referencing
+its local Bake through `producer_id` with an empty `after` did not protect the
+pending Bake from cancellation; the actual level-3 Feed Mill `chicken_feed`
+recipe consumed two Wheat when only one of four physically deposited Wheat was
+unclaimed; and single default Corn Plant / default Bread Bake commitments at
+`i64::MAX - 40000` were accepted and then panicked in actual executor deadline
+addition. Admission must reject unrepresentable growth and machine readiness
+atomically before committing tasks, with a useful arithmetic reason. These
+requirements concern actual authored catalog jobs, not automatic goal search.
+
+Canceling an unused explicit Collect, waiting for its existing Bake, and using
+existing public manual Collect succeeded. This positive preserves that lifecycle.
+The current Collect wire names only a local producer; a cross-chain replacement
+Collect was not invented to claim a duplicate-record failure. The source audit
+still requires genuine local producer dependencies to count even without a
+redundant explicit `after` edge. These supplemental tests prescribe observable
+behavior rather than a second inventory ledger, clock, or executor.
+
+Baseline evidence: `/tmp/farm225-final-adjacent-baseline.log`; accepted Plant and
+Bake were advanced through actual steps to characterize the executor overflow.
+After a correct early rejection those diagnostic branches do not execute.
