@@ -627,6 +627,48 @@ fn dependencies(farm: &FarmState, chain_id: &str, job: &ConcreteJob) -> Result<i
             ConcreteInputSource::Stored => {}
         }
     }
+    if let ConcreteWork::HarvestCrop { plot_id } = &job.work {
+        if let Some(crop) = farm
+            .field_plots
+            .iter()
+            .find(|plot| plot.id == *plot_id)
+            .and_then(|plot| plot.crop.as_ref())
+        {
+            at = at.max(crop.ready_at_ms);
+        }
+        for source in farm
+            .concrete_chains
+            .values()
+            .flat_map(|chain| chain.jobs.values())
+        {
+            if !matches!(&source.work, ConcreteWork::PlantCrop { plot_id: source_plot, .. } if source_plot == plot_id)
+            {
+                continue;
+            }
+            for id in &source.task_ids {
+                let Some(task) = task(farm, &source.resident_id, id) else {
+                    continue;
+                };
+                let mut completed_at = task.ready_at_ms;
+                for (index, step) in task.steps.iter().enumerate() {
+                    if index > 0 {
+                        completed_at = completed_at
+                            .checked_add(resident_task_step_duration_ms(step))
+                            .ok_or_else(|| CommandError::new("dependency timing overflow"))?;
+                    }
+                    if matches!(step.work, ResidentTaskStepWork::PlantCrop { .. }) {
+                        if let Some(terms) = &source.crop_terms {
+                            at = at.max(
+                                completed_at
+                                    .checked_add(terms.duration_ms)
+                                    .ok_or_else(|| CommandError::new("growth timing overflow"))?,
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
     if let ConcreteWork::CollectOvenJob { producer_id } = &job.work {
         let source = producer(farm, chain_id, producer_id)?;
         at = at.max(job_end_without_clock(farm, source)?);
@@ -702,6 +744,18 @@ pub(super) fn reconcile(farm: &mut FarmState) -> Result<(), CommandError> {
         let Some(step) = task.steps.first() else {
             continue;
         };
+        if let ResidentTaskStepWork::HarvestCrop { .. } = &step.work {
+            if let ReservedWorkTarget::FieldPlot { plot_id } = &step.reserved_work_target {
+                if let Some(crop) = farm
+                    .field_plots
+                    .iter()
+                    .find(|plot| plot.id == *plot_id)
+                    .and_then(|plot| plot.crop.as_ref())
+                {
+                    task.ready_at_ms = task.ready_at_ms.max(crop.ready_at_ms);
+                }
+            }
+        }
         if let ResidentTaskStepWork::CollectOvenJob { job_id, .. } = &step.work {
             if let Some(job) = farm
                 .oven
@@ -896,4 +950,75 @@ pub(super) fn physically_reserved_pickups(farm: &FarmState, item: &str) -> u32 {
         .map(|stack| stack.quantity)
         .fold(0u32, u32::saturating_add);
     pickups.saturating_sub(unproduced_pickups(farm, item))
+}
+
+/// A physical queue cannot wait on a producer queued behind its consumer.
+pub(super) fn validate_queue_dependencies(
+    farm: &FarmState,
+    resident: &str,
+    queue: &[ResidentTask],
+) -> Result<(), CommandError> {
+    let position = |id: &str| queue.iter().position(|task| task.id == id);
+    for (chain_id, chain) in &farm.concrete_chains {
+        for job in chain
+            .jobs
+            .values()
+            .filter(|job| job.resident_id == resident)
+        {
+            let Some(consumer_at) = job.task_ids.iter().filter_map(|id| position(id)).min() else {
+                continue;
+            };
+            let mut producers = job
+                .after
+                .iter()
+                .map(|id| producer(farm, chain_id, id))
+                .collect::<Result<Vec<_>, _>>()?;
+            if let ConcreteWork::CollectOvenJob { producer_id } = &job.work {
+                producers.push(producer(farm, chain_id, producer_id)?);
+            }
+            for input in &job.inputs {
+                match &input.source {
+                    ConcreteInputSource::ProducerOutput {
+                        chain_id: source_chain,
+                        job_id,
+                    } => {
+                        producers.push(producer(
+                            farm,
+                            source_chain.as_deref().unwrap_or(chain_id),
+                            job_id,
+                        )?);
+                    }
+                    ConcreteInputSource::CommittedTaskOutput {
+                        resident_id,
+                        task_id,
+                    } => {
+                        if resident_id == resident
+                            && position(task_id).is_some_and(|at| at >= consumer_at)
+                        {
+                            return Err(CommandError::new(
+                                "reorder conflicts with a concrete producer dependency",
+                            ));
+                        }
+                    }
+                    ConcreteInputSource::Stored => {}
+                }
+            }
+            for source in producers
+                .into_iter()
+                .filter(|source| source.resident_id == resident)
+            {
+                if source
+                    .task_ids
+                    .iter()
+                    .filter_map(|id| position(id))
+                    .any(|at| at >= consumer_at)
+                {
+                    return Err(CommandError::new(
+                        "reorder conflicts with a concrete producer dependency",
+                    ));
+                }
+            }
+        }
+    }
+    Ok(())
 }

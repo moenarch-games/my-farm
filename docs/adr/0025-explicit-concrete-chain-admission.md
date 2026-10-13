@@ -38,6 +38,10 @@ promised ingredients against unrelated admission, sale or discard. Unclaimed
 stock remains available. There is no duplicated inventory or output ledger.
 
 The executor revises waiting dependency times when real upstream work is delayed.
+Harvest dependencies retain captured Plant growth and actual crop readiness; an
+already-started Harvest waits with its physical custody intact until maturity.
+Reordering rejects a physical queue that places a concrete consumer ahead of its
+same-Resident producer, including implicit collection and quantity bindings.
 Started collection also checks the actual Oven readiness deadline, preserving
 its physical Tool custody and the Oven job while waiting. The actual collection
 boundary checks readiness and recipe availability before removing the job.

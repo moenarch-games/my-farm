@@ -2430,6 +2430,22 @@ fn ready_resident_task_step(
             return None;
         }
     }
+    if let Some(ResidentTaskStep {
+        work: ResidentTaskStepWork::HarvestCrop { .. },
+        reserved_work_target: ReservedWorkTarget::FieldPlot { plot_id },
+        ..
+    }) = task.steps.first()
+    {
+        if farm
+            .field_plots
+            .iter()
+            .find(|plot| plot.id == *plot_id)
+            .and_then(|plot| plot.crop.as_ref())
+            .is_some_and(|crop| crop.ready_at_ms > task.ready_at_ms)
+        {
+            return None;
+        }
+    }
     Some((
         task.id.clone(),
         task.steps.first()?.clone(),
@@ -4123,6 +4139,7 @@ fn reorder_resident_task(
     reordered.insert(insert_index, moved_task);
 
     let replanned_queue = replan_resident_future_queue(farm, catalog, resident_id, reordered)?;
+    concrete_chain::validate_queue_dependencies(farm, resident_id, &replanned_queue)?;
     farm.resident_task_queues
         .insert(resident_id.to_owned(), replanned_queue);
 
