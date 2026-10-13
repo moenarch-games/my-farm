@@ -338,3 +338,54 @@ Later successful completion/atomic rejection assertions are UNRUN in the four
 failing baseline cases. These are retrospective review regressions, not a claim
 that they preceded the initial implementation or constitute automatic goal/UI
 acceptance.
+
+### Retrospective implicit-growth and two-hop delay review closure
+
+Independent additive regressions in
+`crates/my_farm_core/tests/explicit_chain_review_regressions.rs` were authored
+against frozen `79ea689bdd964b72747c5ae650b5d6cb12a29a1b` before the next producer
+repair. Review findings `4263835522` / `4263835528` identify diagnostic surfaces;
+current Atlas 3.1.2/3.1.3/3.2.2 and #225 remain product authority. Original
+39 protected cases, their shared fixture and client compatibility assertions
+were not edited.
+
+A genuine ordinary Plant on plot-3 establishes the current Woman task. The real
+concrete chain then queues Plant Corn on plot-1 followed by same-Resident Harvest
+on plot-1, with no redundant `after` metadata. This valid admission and complete
+physical Corn deposit **PASS** on the baseline. Existing public reorder of that
+future Harvest before its actual Plant and individual stop of that necessary
+Plant must reject atomically with a useful dependency/conflict reason, preserving
+all existing commitments and finite Tool custody. Both are actual **RED** at
+wrongfully accepted commands on the frozen baseline. This preserves implicit
+physical dependencies, without requiring callers to restate every same-plot
+relationship or introducing a whole-chain cancellation intent.
+
+A separate accepted chain has Woman plant Wheat on plot-2, Woman plant Corn on
+plot-1 after that upstream task, and Man harvest plot-1 after its Corn Plant.
+Real undelayed execution supplies the original completion witness. Save/reload
+delays only the actual upstream task deadline past that witness, leaving the
+Corn plot empty; no crop, output, stock or result is injected. Advancing to the
+old completion time must retain the Harvest commitment without completing its
+work, physical Corn cargo, Silo credit or ordinary blocked work. Actual captured
+growth still follows the eventually executed Plant. On the baseline, this is
+**RED**: the Harvest work has disappeared while its actual crop is still absent.
+The companion large-versus-split advancement test is also **RED** at the same
+premature Harvest boundary. Final same-state batching equality, delayed-phase
+reload and real deposit assertions are **UNRUN** until that boundary is repaired;
+they are not claimed as independently reproduced downstream failures.
+
+The test only uses existing public command/time/serialized Farm boundaries and
+reuses the original source-only fixture unchanged. Existing ordinary reorder,
+safe-stop and concrete-chain positive behavior must stay green. An existing
+isolated checkout is retained under the ordinary-checkout exception because the
+ordinary My Farm checkout contains unrelated owner edits overlapping core
+engine/state/view/catalog, generated contracts, browser tests and client code.
+Those owner changes are preserved. Acceptance authoring and the stopped original
+producer execute sequentially on this exact branch/PR; no second Farm writer or
+new worktree was created.
+
+Baseline command: `cargo test -p my_farm_core --test explicit_chain_admission
+--test explicit_chain_review_regressions`: original **39 PASS**, additive
+**1 PASS / 4 RED**, zero ignored. Evidence:
+`/tmp/farm225-review2-contract-red.log`. Strict focused Clippy and formatting are
+separate mechanical gates, not evidence that the red behavior is implemented.
