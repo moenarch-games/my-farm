@@ -46,7 +46,9 @@ already-started Harvest waits with its physical custody intact until maturity.
 Reordering rejects a physical queue that places a concrete consumer ahead of its
 same-Resident producer, including implicit same-plot planting, collection and
 quantity bindings. Individual producer stop preserves those same physical crop
-dependencies even when callers omit a redundant `after` edge.
+dependencies even when callers omit a redundant `after` edge. The actual pending
+Plant steps identify these prerequisites for ordinary manual producers as well
+as concrete jobs; a parallel provenance ledger is not required.
 Started collection also checks the actual Oven readiness deadline, preserving
 its physical Tool custody and the Oven job while waiting. The actual collection
 boundary checks readiness and recipe availability before removing the job.

@@ -612,6 +612,23 @@ fn implicit_crop_producers<'a>(
     })
 }
 
+// Physical prerequisites can originate in either manual commands or a concrete
+// chain. Use their actual queued Plant steps rather than requiring job metadata.
+fn implicit_crop_tasks<'a>(
+    farm: &'a FarmState,
+    consumer: &'a ConcreteJob,
+) -> impl Iterator<Item = (&'a str, &'a ResidentTask)> {
+    farm.resident_task_queues.iter().flat_map(move |(resident, queue)| {
+        queue.iter().filter(move |task| {
+            let ConcreteWork::HarvestCrop { plot_id } = &consumer.work else { return false; };
+            task.steps.iter().any(|step| {
+                matches!(&step.reserved_work_target, ReservedWorkTarget::FieldPlot { plot_id: planted } if planted == plot_id)
+                    && matches!(step.work, ResidentTaskStepWork::PlantCrop { .. })
+            })
+        }).map(move |task| (resident.as_str(), task))
+    })
+}
+
 fn dependencies(farm: &FarmState, chain_id: &str, job: &ConcreteJob) -> Result<i64, CommandError> {
     let mut at = i64::MIN;
     for id in &job.after {
@@ -810,10 +827,8 @@ pub(super) fn required_task(farm: &FarmState, resident: &str, id: &str) -> bool 
                 _ => false,
             };
             intrinsic_producer
-                || implicit_crop_producers(farm, job).any(|source| {
-                    source.resident_id == resident
-                        && source.task_ids.iter().any(|task_id| task_id == id)
-                })
+                || implicit_crop_tasks(farm, job)
+                    .any(|(source_resident, source)| source_resident == resident && source.id == id)
                 || job.after.iter().any(|source| {
                     chain.jobs.get(source).is_some_and(|producer| {
                         producer.resident_id == resident
@@ -998,7 +1013,15 @@ pub(super) fn validate_queue_dependencies(
             if let ConcreteWork::CollectOvenJob { producer_id } = &job.work {
                 producers.push(producer(farm, chain_id, producer_id)?);
             }
-            producers.extend(implicit_crop_producers(farm, job));
+            for (source_resident, source) in implicit_crop_tasks(farm, job) {
+                if source_resident == resident
+                    && position(&source.id).is_some_and(|at| at >= consumer_at)
+                {
+                    return Err(CommandError::new(
+                        "reorder conflicts with an implicit crop dependency",
+                    ));
+                }
+            }
             for input in &job.inputs {
                 match &input.source {
                     ConcreteInputSource::ProducerOutput {
