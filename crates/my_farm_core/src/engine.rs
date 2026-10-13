@@ -2431,7 +2431,7 @@ fn ready_resident_task_step(
         }
     }
     if let Some(ResidentTaskStep {
-        work: ResidentTaskStepWork::HarvestCrop { .. },
+        work: ResidentTaskStepWork::HarvestCrop { crop_id, .. },
         reserved_work_target: ReservedWorkTarget::FieldPlot { plot_id },
         ..
     }) = task.steps.first()
@@ -2441,7 +2441,7 @@ fn ready_resident_task_step(
             .iter()
             .find(|plot| plot.id == *plot_id)
             .and_then(|plot| plot.crop.as_ref())
-            .is_some_and(|crop| crop.ready_at_ms > task.ready_at_ms)
+            .is_none_or(|crop| crop.item_id != *crop_id || crop.ready_at_ms > task.ready_at_ms)
         {
             return None;
         }

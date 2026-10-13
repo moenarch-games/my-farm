@@ -38,10 +38,15 @@ promised ingredients against unrelated admission, sale or discard. Unclaimed
 stock remains available. There is no duplicated inventory or output ledger.
 
 The executor revises waiting dependency times when real upstream work is delayed.
+Before executing another physical step, it propagates deadlines to convergence
+within a bound derived from the pending task count. Missing or mismatched actual
+crops never satisfy Harvest readiness; captured output cannot replace planting.
 Harvest dependencies retain captured Plant growth and actual crop readiness; an
 already-started Harvest waits with its physical custody intact until maturity.
 Reordering rejects a physical queue that places a concrete consumer ahead of its
-same-Resident producer, including implicit collection and quantity bindings.
+same-Resident producer, including implicit same-plot planting, collection and
+quantity bindings. Individual producer stop preserves those same physical crop
+dependencies even when callers omit a redundant `after` edge.
 Started collection also checks the actual Oven readiness deadline, preserving
 its physical Tool custody and the Oven job while waiting. The actual collection
 boundary checks readiness and recipe availability before removing the job.

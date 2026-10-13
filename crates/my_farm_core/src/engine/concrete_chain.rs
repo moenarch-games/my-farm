@@ -600,6 +600,18 @@ fn admit_job(
     Ok(())
 }
 
+// Admission can infer crop provenance from physical same-plot work even when
+// callers omit a redundant after edge. Lifecycle changes retain that dependency.
+fn implicit_crop_producers<'a>(
+    farm: &'a FarmState,
+    consumer: &'a ConcreteJob,
+) -> impl Iterator<Item = &'a ConcreteJob> {
+    farm.concrete_chains.values().flat_map(|chain| chain.jobs.values()).filter(move |source| {
+        matches!((&source.work, &consumer.work),
+            (ConcreteWork::PlantCrop { plot_id: planted, .. }, ConcreteWork::HarvestCrop { plot_id: harvested }) if planted == harvested)
+    })
+}
+
 fn dependencies(farm: &FarmState, chain_id: &str, job: &ConcreteJob) -> Result<i64, CommandError> {
     let mut at = i64::MIN;
     for id in &job.after {
@@ -636,15 +648,7 @@ fn dependencies(farm: &FarmState, chain_id: &str, job: &ConcreteJob) -> Result<i
         {
             at = at.max(crop.ready_at_ms);
         }
-        for source in farm
-            .concrete_chains
-            .values()
-            .flat_map(|chain| chain.jobs.values())
-        {
-            if !matches!(&source.work, ConcreteWork::PlantCrop { plot_id: source_plot, .. } if source_plot == plot_id)
-            {
-                continue;
-            }
+        for source in implicit_crop_producers(farm, job) {
             for id in &source.task_ids {
                 let Some(task) = task(farm, &source.resident_id, id) else {
                     continue;
@@ -694,47 +698,61 @@ fn job_end_without_clock(farm: &FarmState, job: &ConcreteJob) -> Result<i64, Com
 /// Slide only still-waiting concrete tasks through the existing queue. Actual
 /// delivery steps must finish; their nominal ready time is not inventory credit.
 pub(super) fn reconcile(farm: &mut FarmState) -> Result<(), CommandError> {
-    let changes = farm
-        .concrete_chains
-        .iter()
-        .flat_map(|(chain_id, chain)| chain.jobs.values().map(move |job| (chain_id, job)))
-        .filter_map(|(chain_id, job)| {
-            let id = job.task_ids.first()?;
-            let task = task(farm, &job.resident_id, id)?;
-            if task.stop_requested || task.steps.len() != job.initial_step_count {
-                return None;
-            }
-            Some(
-                dependencies(farm, chain_id, job)
-                    .map(|at| (job.resident_id.clone(), id.clone(), at)),
-            )
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    for (resident, id, dependency_at) in changes {
-        let queue = farm
-            .resident_task_queues
-            .get_mut(&resident)
-            .expect("task came from queue");
-        let index = queue
+    // Propagate every backed deadline before the executor starts any step.
+    // An acyclic dependency/physical-queue path visits each pending task once;
+    // the final extra pass observes convergence rather than using a stale snapshot.
+    let task_count: usize = farm.resident_task_queues.values().map(Vec::len).sum();
+    for pass in 0..=task_count {
+        let changes = farm
+            .concrete_chains
             .iter()
-            .position(|task| task.id == id)
-            .expect("task came from queue");
-        let previous = if index > 0 {
-            tail(&queue[index - 1])?
-        } else {
-            i64::MIN
-        };
-        let task = &mut queue[index];
-        let start = task.started_at_ms.max(dependency_at).max(previous);
-        if start > task.started_at_ms {
-            let delay = start
-                .checked_sub(task.started_at_ms)
-                .ok_or_else(|| CommandError::new("dependency timing overflow"))?;
-            task.ready_at_ms = task
-                .ready_at_ms
-                .checked_add(delay)
-                .ok_or_else(|| CommandError::new("dependency timing overflow"))?;
-            task.started_at_ms = start;
+            .flat_map(|(chain_id, chain)| chain.jobs.values().map(move |job| (chain_id, job)))
+            .filter_map(|(chain_id, job)| {
+                let id = job.task_ids.first()?;
+                let task = task(farm, &job.resident_id, id)?;
+                if task.stop_requested || task.steps.len() != job.initial_step_count {
+                    return None;
+                }
+                Some(
+                    dependencies(farm, chain_id, job)
+                        .map(|at| (job.resident_id.clone(), id.clone(), at)),
+                )
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut changed = false;
+        for (resident, id, dependency_at) in changes {
+            let queue = farm
+                .resident_task_queues
+                .get_mut(&resident)
+                .expect("task came from queue");
+            let index = queue
+                .iter()
+                .position(|task| task.id == id)
+                .expect("task came from queue");
+            let previous = if index > 0 {
+                tail(&queue[index - 1])?
+            } else {
+                i64::MIN
+            };
+            let task = &mut queue[index];
+            let start = task.started_at_ms.max(dependency_at).max(previous);
+            if start > task.started_at_ms {
+                changed = true;
+                let delay = start
+                    .checked_sub(task.started_at_ms)
+                    .ok_or_else(|| CommandError::new("dependency timing overflow"))?;
+                task.ready_at_ms = task
+                    .ready_at_ms
+                    .checked_add(delay)
+                    .ok_or_else(|| CommandError::new("dependency timing overflow"))?;
+                task.started_at_ms = start;
+            }
+        }
+        if !changed {
+            break;
+        }
+        if pass == task_count {
+            return Err(CommandError::new("concrete dependency timing conflict"));
         }
     }
     for queue in farm.resident_task_queues.values_mut() {
@@ -792,6 +810,10 @@ pub(super) fn required_task(farm: &FarmState, resident: &str, id: &str) -> bool 
                 _ => false,
             };
             intrinsic_producer
+                || implicit_crop_producers(farm, job).any(|source| {
+                    source.resident_id == resident
+                        && source.task_ids.iter().any(|task_id| task_id == id)
+                })
                 || job.after.iter().any(|source| {
                     chain.jobs.get(source).is_some_and(|producer| {
                         producer.resident_id == resident
@@ -976,6 +998,7 @@ pub(super) fn validate_queue_dependencies(
             if let ConcreteWork::CollectOvenJob { producer_id } = &job.work {
                 producers.push(producer(farm, chain_id, producer_id)?);
             }
+            producers.extend(implicit_crop_producers(farm, job));
             for input in &job.inputs {
                 match &input.source {
                     ConcreteInputSource::ProducerOutput {
