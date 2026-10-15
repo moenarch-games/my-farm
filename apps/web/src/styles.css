@@ -794,6 +794,14 @@ button[aria-disabled="true"] {
   touch-action: none;
 }
 
+.field-hit-target:focus-visible {
+  opacity: 1;
+  /* Tile-projected CSS scales with the camera: keep the cue world-sized too. */
+  outline: 24px solid #fff7d0;
+  outline-offset: 12px;
+  box-shadow: 0 0 0 48px #20312b;
+}
+
 .ground-hit-target {
   width: 18px;
   height: 16px;
