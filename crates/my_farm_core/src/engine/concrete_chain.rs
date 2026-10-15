@@ -690,6 +690,27 @@ fn dependencies(farm: &FarmState, chain_id: &str, job: &ConcreteJob) -> Result<i
             }
         }
     }
+    // Ordinary (manual) Plant tasks carry no job metadata; use the Harvest's
+    // accepted crop terms so their delays still reach transitive consumers.
+    if let (ConcreteWork::HarvestCrop { .. }, Some(terms)) = (&job.work, &job.crop_terms) {
+        for (_, task) in implicit_crop_tasks(farm, job) {
+            let mut completed_at = task.ready_at_ms;
+            for (index, step) in task.steps.iter().enumerate() {
+                if index > 0 {
+                    completed_at = completed_at
+                        .checked_add(resident_task_step_duration_ms(step))
+                        .ok_or_else(|| CommandError::new("dependency timing overflow"))?;
+                }
+                if matches!(step.work, ResidentTaskStepWork::PlantCrop { .. }) {
+                    at = at.max(
+                        completed_at
+                            .checked_add(terms.duration_ms)
+                            .ok_or_else(|| CommandError::new("growth timing overflow"))?,
+                    );
+                }
+            }
+        }
+    }
     if let ConcreteWork::CollectOvenJob { producer_id } = &job.work {
         let source = producer(farm, chain_id, producer_id)?;
         at = at.max(job_end_without_clock(farm, source)?);
@@ -989,7 +1010,63 @@ pub(super) fn physically_reserved_pickups(farm: &FarmState, item: &str) -> u32 {
     pickups.saturating_sub(unproduced_pickups(farm, item))
 }
 
-/// A physical queue cannot wait on a producer queued behind its consumer.
+/// Every physical task a concrete job transitively waits on: explicit and
+/// implicit Collect producers, producer outputs, committed task outputs and
+/// actual queued Plant steps for a harvested plot (including ordinary tasks).
+fn upstream_tasks(
+    farm: &FarmState,
+    chain_id: &str,
+    job: &ConcreteJob,
+) -> Result<BTreeSet<(String, String)>, CommandError> {
+    let mut tasks = BTreeSet::new();
+    let mut visited = BTreeSet::new();
+    let mut pending = vec![(chain_id.to_owned(), job)];
+    while let Some((chain_id, job)) = pending.pop() {
+        let mut producers = job
+            .after
+            .iter()
+            .map(|id| Ok((chain_id.clone(), id.clone())))
+            .collect::<Result<Vec<_>, CommandError>>()?;
+        if let ConcreteWork::CollectOvenJob { producer_id } = &job.work {
+            producers.push((chain_id.clone(), producer_id.clone()));
+        }
+        for (resident, task) in implicit_crop_tasks(farm, job) {
+            tasks.insert((resident.to_owned(), task.id.clone()));
+        }
+        for input in &job.inputs {
+            match &input.source {
+                ConcreteInputSource::ProducerOutput {
+                    chain_id: source_chain,
+                    job_id,
+                } => producers.push((
+                    source_chain.clone().unwrap_or_else(|| chain_id.clone()),
+                    job_id.clone(),
+                )),
+                ConcreteInputSource::CommittedTaskOutput {
+                    resident_id,
+                    task_id,
+                } => {
+                    tasks.insert((resident_id.clone(), task_id.clone()));
+                }
+                ConcreteInputSource::Stored => {}
+            }
+        }
+        for (source_chain, id) in producers {
+            if !visited.insert((source_chain.clone(), id.clone())) {
+                continue;
+            }
+            let source = producer(farm, &source_chain, &id)?;
+            for task_id in &source.task_ids {
+                tasks.insert((source.resident_id.clone(), task_id.clone()));
+            }
+            pending.push((source_chain, source));
+        }
+    }
+    Ok(tasks)
+}
+
+/// A physical queue cannot wait on a producer queued behind its consumer,
+/// directly or through producers on other Residents.
 pub(super) fn validate_queue_dependencies(
     farm: &FarmState,
     resident: &str,
@@ -1005,59 +1082,10 @@ pub(super) fn validate_queue_dependencies(
             let Some(consumer_at) = job.task_ids.iter().filter_map(|id| position(id)).min() else {
                 continue;
             };
-            let mut producers = job
-                .after
-                .iter()
-                .map(|id| producer(farm, chain_id, id))
-                .collect::<Result<Vec<_>, _>>()?;
-            if let ConcreteWork::CollectOvenJob { producer_id } = &job.work {
-                producers.push(producer(farm, chain_id, producer_id)?);
-            }
-            for (source_resident, source) in implicit_crop_tasks(farm, job) {
+            for (source_resident, task_id) in upstream_tasks(farm, chain_id, job)? {
                 if source_resident == resident
-                    && position(&source.id).is_some_and(|at| at >= consumer_at)
-                {
-                    return Err(CommandError::new(
-                        "reorder conflicts with an implicit crop dependency",
-                    ));
-                }
-            }
-            for input in &job.inputs {
-                match &input.source {
-                    ConcreteInputSource::ProducerOutput {
-                        chain_id: source_chain,
-                        job_id,
-                    } => {
-                        producers.push(producer(
-                            farm,
-                            source_chain.as_deref().unwrap_or(chain_id),
-                            job_id,
-                        )?);
-                    }
-                    ConcreteInputSource::CommittedTaskOutput {
-                        resident_id,
-                        task_id,
-                    } => {
-                        if resident_id == resident
-                            && position(task_id).is_some_and(|at| at >= consumer_at)
-                        {
-                            return Err(CommandError::new(
-                                "reorder conflicts with a concrete producer dependency",
-                            ));
-                        }
-                    }
-                    ConcreteInputSource::Stored => {}
-                }
-            }
-            for source in producers
-                .into_iter()
-                .filter(|source| source.resident_id == resident)
-            {
-                if source
-                    .task_ids
-                    .iter()
-                    .filter_map(|id| position(id))
-                    .any(|at| at >= consumer_at)
+                    && !job.task_ids.contains(&task_id)
+                    && position(&task_id).is_some_and(|at| at >= consumer_at)
                 {
                     return Err(CommandError::new(
                         "reorder conflicts with a concrete producer dependency",
