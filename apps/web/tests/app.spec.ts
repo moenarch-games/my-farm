@@ -5151,3 +5151,94 @@ function touchEvent(point: { x: number; y: number }) {
     clientY: point.y,
   };
 }
+
+// Independent #231 continuation acceptance: preserve the synthetic cases above
+// and additionally verify trusted browser touch and physical DOM hit testing.
+test.describe("trusted touch gesture geometry", () => {
+  test.use({ hasTouch: true });
+
+  test("trusted touch drag on unobscured free canvas pans the Farm", async ({ page }) => {
+    await mockFarmApi(page);
+    await openFarm(page);
+    const canvas = page.locator("canvas").first();
+    await expect(canvas).toBeVisible();
+    const point = await canvas.evaluate((element) => {
+      const box = element.getBoundingClientRect();
+      // No Selection panel is insufficient: Residents may intercept input
+      // without opening that panel. Exclude projected objects and DOM chrome.
+      const objects = Array.from(document.querySelectorAll(
+        '[aria-label^="Field Plot "], [aria-label$=" structure"], [data-testid^="farm-scene-resident-"]',
+      )).map((target) => target.getBoundingClientRect());
+      for (let y = box.top + 96; y < Math.min(box.bottom - 96, innerHeight - 96); y += 24) {
+        for (let x = box.left + 24; x < Math.min(box.right - 140, innerWidth - 140); x += 24) {
+          const nearObject = objects.some((target) =>
+            x >= target.left - 24 && x <= target.right + 24 &&
+            y >= target.top - 24 && y <= target.bottom + 24,
+          );
+          if (!nearObject && document.elementFromPoint(x, y) === element) {
+            return { x, y };
+          }
+        }
+      }
+      throw new Error("No physically unobscured free canvas point found");
+    });
+    expect(await canvas.evaluate((element, target) =>
+      document.elementFromPoint(target.x, target.y) === element, point,
+    )).toBe(true);
+    const field = page.getByLabel("Field Plot plot-1", { exact: true });
+    const before = await elementCenter(field);
+    const session = await page.context().newCDPSession(page);
+    try {
+      await session.send("Input.dispatchTouchEvent", {
+        type: "touchStart", touchPoints: [{ ...point, id: 1 }],
+      });
+      for (let step = 1; step <= 6; step += 1) {
+        await session.send("Input.dispatchTouchEvent", {
+          type: "touchMove",
+          touchPoints: [{ x: point.x + 140 * step / 6, y: point.y + 80 * step / 6, id: 1 }],
+        });
+        await page.waitForTimeout(20);
+      }
+      await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+      // Observe geometry rather than animated canvas pixels.
+      await expect.poll(async () => {
+        const after = await elementCenter(field);
+        return Math.hypot(after.x - before.x, after.y - before.y);
+      }).toBeGreaterThan(1);
+      await expect(page.getByTestId("structure-context-menu")).toBeHidden();
+      await expect(page.getByTestId("field-context-menu")).toBeHidden();
+    } finally {
+      await session.detach();
+    }
+  });
+
+  test("trusted touch long press hits the ready field and opens its Harvest menu", async ({ page }) => {
+    const commands: CommandRequest[] = [];
+    await mockFarmApi(page, readyFieldView(), catalog, (request) => { commands.push(request); });
+    await openFarm(page);
+    const field = page.getByLabel("Field Plot plot-1", { exact: true });
+    await expect(field).toBeVisible();
+    const point = await elementCenter(field);
+    // Fail on interception; do not dispatch to a covered node or hunt for a
+    // different point that hides the overlap.
+    expect(await field.evaluate((element, target) => {
+      const hit = document.elementFromPoint(target.x, target.y);
+      return hit === element || (hit !== null && element.contains(hit));
+    }, point)).toBe(true);
+    const session = await page.context().newCDPSession(page);
+    try {
+      await session.send("Input.dispatchTouchEvent", {
+        type: "touchStart", touchPoints: [{ ...point, id: 1 }],
+      });
+      await page.waitForTimeout(560);
+      await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+      await expect(page.getByTestId("structure-context-menu")).toBeHidden();
+      const menu = page.getByTestId("field-context-menu");
+      await expect(menu).toContainText("Wheat");
+      await expect(menu.getByRole("menuitem", { name: "Harvest", exact: true })).toBeEnabled();
+      expect(commands).toHaveLength(0);
+    } finally {
+      await session.detach();
+    }
+  });
+});

@@ -15,23 +15,23 @@ for (const width of [1280, 390]) {
     // prevent these actual interaction targets from being created.
     await expect(page.getByLabel("Field Plot plot-1", { exact: true })).toBeVisible();
     // Camera initialization also runs through RAF. Wait until the actual plot
-    // upper edge accepts a pointer before pausing, including the phone layout.
+    // centre accepts a pointer before pausing, including the phone layout.
     await expect.poll(() => page.getByLabel("Field Plot plot-1", { exact: true }).evaluate((element) => {
       const bounds = element.getBoundingClientRect();
-      return document.elementFromPoint(bounds.x + 5, bounds.y + 2) === element;
+      return document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2) === element;
     })).toBe(true);
     // Schedule a future pause so the observer-to-driver round trip cannot
     // request a timestamp that has already elapsed. No work is queued yet.
     await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1_000));
     await seedWheat(page);
     for (const plot of ["plot-1", "plot-2"]) {
-      await page.getByLabel(`Field Plot ${plot}`, { exact: true }).click({ position: { x: 5, y: 2 } });
+      await page.getByLabel(`Field Plot ${plot}`, { exact: true }).click();
     }
     await expect.poll(async () => (await saved(page)).resident_task_queues.woman?.length).toBe(2);
     const earlier = (await saved(page)).resident_task_queues.woman;
     await selectResident(page, "Man");
     await seedWheat(page);
-    await page.getByLabel("Field Plot plot-3", { exact: true }).click({ position: { x: 5, y: 2 } });
+    await page.getByLabel("Field Plot plot-3", { exact: true }).click();
     await expect.poll(async () => (await saved(page)).resident_task_queues.man?.length).toBe(1);
     const accepted = await saved(page);
     expect(accepted.resident_task_queues.woman).toEqual(earlier);

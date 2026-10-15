@@ -84,7 +84,7 @@ export function FarmResidentFigure({
           animationPaused={resident.animationPaused}
         />
       </ResidentFacingRoot>
-      <Html position={[0, 0.96, 0]} center zIndexRange={[88, 0]} wrapperClass="farm-scene-resident-marker-wrapper">
+      <Html position={[0, 0.96, 0]} center zIndexRange={[110, 0]} wrapperClass="farm-scene-resident-marker-wrapper">
         <div className="farm-scene-resident-ui">
           <button
             type="button"

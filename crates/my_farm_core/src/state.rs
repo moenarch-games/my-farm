@@ -772,6 +772,32 @@ pub fn new_farm(now_ms: i64, catalog: &CatalogDocument) -> FarmState {
     farm
 }
 
+/// First-minute Farm for the player-facing start (Atlas 1.5.1): the baseline Farm
+/// plus one authoritatively ripe Wheat Field Plot, so the first objective is a
+/// Resident-first harvest. `new_farm` stays the empty-field baseline for tests
+/// and the self-hosted server.
+pub const FIRST_HARVEST_PLOT_ID: &str = "plot-6";
+
+pub fn new_first_harvest_farm(now_ms: i64, catalog: &CatalogDocument) -> FarmState {
+    let mut farm = new_farm(now_ms, catalog);
+    if let Some(crop) = catalog.crop("wheat") {
+        let growth_ms =
+            crate::scaled_duration_ms(crop.reference_seconds, catalog.balance.time_scale);
+        if let Some(plot) = farm
+            .field_plots
+            .iter_mut()
+            .find(|plot| plot.id == FIRST_HARVEST_PLOT_ID)
+        {
+            plot.crop = Some(PlantedCrop {
+                item_id: crop.item_id.clone(),
+                planted_at_ms: now_ms.saturating_sub(growth_ms),
+                ready_at_ms: now_ms,
+            });
+        }
+    }
+    farm
+}
+
 pub fn inventory_quantity(farm: &FarmState, item_id: &str) -> u32 {
     farm.inventory.get(item_id).copied().unwrap_or(0)
 }

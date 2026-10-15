@@ -74,6 +74,7 @@ type Props = {
   onStartPlantSweep: (plotId: string, pointerId: number) => void;
   onEnterPlantSweepPlot: (plotId: string) => void;
   onStartHarvestSweep: (plotId: string, pointerId: number) => void;
+  onKeyboardFieldTool?: (plotId: string) => void;
   onEnterHarvestSweepPlot: (plotId: string) => void;
   onCancelFieldToolAction: () => void;
 };
@@ -98,6 +99,7 @@ export function FarmScene({
   onStartPlantSweep,
   onEnterPlantSweepPlot,
   onStartHarvestSweep,
+  onKeyboardFieldTool,
   onEnterHarvestSweepPlot,
   onCancelFieldToolAction,
   onSelectResident,
@@ -164,6 +166,7 @@ export function FarmScene({
             onStartPlantSweep={onStartPlantSweep}
             onEnterPlantSweepPlot={onEnterPlantSweepPlot}
             onStartHarvestSweep={onStartHarvestSweep}
+            onKeyboardFieldTool={onKeyboardFieldTool}
             onEnterHarvestSweepPlot={onEnterHarvestSweepPlot}
             onCancelFieldToolAction={onCancelFieldToolAction}
           />
@@ -939,6 +942,7 @@ function FieldMesh({
   onStartPlantSweep,
   onEnterPlantSweepPlot,
   onStartHarvestSweep,
+  onKeyboardFieldTool,
   onEnterHarvestSweepPlot,
   onCancelFieldToolAction,
 }: {
@@ -959,6 +963,7 @@ function FieldMesh({
   onStartPlantSweep: (plotId: string, pointerId: number) => void;
   onEnterPlantSweepPlot: (plotId: string) => void;
   onStartHarvestSweep: (plotId: string, pointerId: number) => void;
+  onKeyboardFieldTool?: (plotId: string) => void;
   onEnterHarvestSweepPlot: (plotId: string) => void;
   onCancelFieldToolAction: () => void;
 }) {
@@ -1097,6 +1102,10 @@ function FieldMesh({
     }
     if (plantSweep || fieldToolActive) {
       event.stopPropagation();
+      // detail 0: activated by keyboard (Enter/Space), not a pointer.
+      if (fieldToolActive && !plantSweep && event.detail === 0) {
+        onKeyboardFieldTool?.(plot.id);
+      }
       return;
     }
     clearLongPress();
@@ -1325,14 +1334,18 @@ function FieldMesh({
       </group>
       <Html
         position={[tileToWorld(plot.tile.x), 0.28, tileToWorld(plot.tile.y)]}
-        center
+        // Keep the hit area on its tile as the camera zooms and rotates.
+        transform
+        rotation={[-Math.PI / 2, 0, 0]}
+        distanceFactor={1}
         zIndexRange={[100, 0]}
         wrapperClass="field-hit-wrapper"
       >
         <button
           className="field-hit-target"
           type="button"
-          tabIndex={-1}
+          // Reachable by keyboard while a field tool picks its target.
+          tabIndex={fieldToolActive ? 0 : -1}
           aria-label={`Field Plot ${plot.id}`}
           data-wheat-appearance={wheatAppearance ?? "none"}
           onClick={selectFromDom}
