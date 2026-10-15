@@ -62,3 +62,14 @@ cd apps/web && NODE_OPTIONS=--max-old-space-size=3072 MY_FARM_PREBUILT_WASM=1 \
 - **"No unintended camera gestures"** is only approximated by tap-stability of the field's screen position. Pinch, drag and rotate behaviour is not asserted. The camera parts that are not implemented (Atlas 1.3.1) must be reported honestly.
 - **Production Pages URL:** this harness runs the real WASM through the Vite `wasm_demo` runtime, the same as CI. The published https://moritzbrantner.github.io/my-farm/ must be checked manually after merge and deployment: New Farm → select the non-default Resident → Harvest → ripe field → watch the deposit.
 - **#212 interaction:** `onboarding.spec.ts` plants on `plot-1` and asserts exact Silo totals (`Silo 10 of 40`, Wheat 6 at start). If the ripe starting crop occupies `plot-1`, or the starting stock changes, those expectations need **independent re-verification** before any edit. Implementation agents must not rewrite them.
+
+## Continuation: physical touch geometry regression contract
+
+Independent continuation acceptance against pre-repair head `12d741865b9a5cfea268ee17a09d0120e9680983` reuses all original expectations and adds two cases in `apps/web/tests/app.spec.ts`, under `trusted touch gesture geometry`:
+
+- `trusted touch drag on unobscured free canvas pans the Farm`: inspect actual `elementFromPoint`, exclude projected field/structure/Resident bounds, send trusted CDP touch start/move/end, and observe field screen-coordinate movement with no field/structure menu. This avoids inferring ground solely from absent Selection UI and avoids animated-pixel changes as the pan oracle.
+- `trusted touch long press hits the ready field and opens its Harvest menu`: require the existing ready `plot-1` target to be the physical centre hit, then send trusted CDP touch with the existing 560 ms hold. Expect the enabled Harvest menu, no structure menu and no gameplay command. Do not move to another point to conceal interception.
+
+These run in both existing Chromium projects with touch enabled (four executions total). They supplement unchanged synthetic gesture tests, not the real-WASM first-minute ownership/deposit journey. They derive expected behavior from the existing pan and longpress cases and Atlas 1.3.1/2.2.1; they do not prescribe arbitrary exact-overlap primary-tap priority.
+
+Initial evidence: Playwright `--list --grep 'trusted touch'` collects four cases. Browser execution is **unrun** at this acceptance commit; the implementation worker must execute them before production repair, preserve any failing boundary, then execute again after repair. No production change was made while authoring this continuation. Full applicable browser suites and public deployment verification remain required as above.
