@@ -1,9 +1,22 @@
 name: Validate
 
+# Documentation-only edits do not need build artifacts or browser validation.
 on:
   pull_request:
+    paths-ignore:
+      - "AGENTS.md"
+      - "CLAUDE.md"
+      - "CONTEXT.md"
+      - "README.md"
+      - "docs/**"
   push:
     branches: ["main"]
+    paths-ignore:
+      - "AGENTS.md"
+      - "CLAUDE.md"
+      - "CONTEXT.md"
+      - "README.md"
+      - "docs/**"
   workflow_dispatch:
 
 permissions:
@@ -158,10 +171,14 @@ jobs:
           cp -R .artifacts/my-farm-art/. apps/web/public/farm-art/
           node scripts/verify-farm-art.mjs
 
+      # PRs target the public Pages runtime; main also verifies the server web build.
+      # The main Pages artifact is built independently by pages-build.
       - name: Build web client
+        if: ${{ github.event_name != 'pull_request' }}
         run: bun run build:web:prepared
 
       - name: Build GitHub Pages runtime
+        if: ${{ github.event_name == 'pull_request' }}
         run: bun run build:pages:prepared
 
       - name: Install Playwright Chromium
@@ -170,7 +187,19 @@ jobs:
       - name: Run Storybook tests
         run: bun run test:storybook
 
-      - name: Run Pages demo tests without recompiling WASM
+      # Catch regressions in the public journey on PRs, without rerunning the
+      # complete browser matrix for each incremental commit. Main and manual
+      # validation still run every acceptance test before Pages deployment.
+      - name: Run Pages smoke tests without recompiling WASM
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          MY_FARM_PREBUILT_WASM: "1"
+        run: >-
+          bun run test:e2e:pages-demo --grep
+          "pages demo runs from WASM without server API calls|pages demo places a House Interior Decoration|the chosen non-default Resident harvests|narrow touch viewport completes the first-minute harvest|Wheat appearance follows planted Crop state"
+
+      - name: Run full Pages demo tests without recompiling WASM
+        if: ${{ github.event_name != 'pull_request' }}
         env:
           MY_FARM_PREBUILT_WASM: "1"
         run: bun run test:e2e:pages-demo
