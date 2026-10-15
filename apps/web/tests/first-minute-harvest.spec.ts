@@ -247,6 +247,88 @@ test.describe("desktop", () => {
   });
 });
 
+// Regression for a suspended/throttled UI clock when the player returns to
+// the menu and starts a fresh Farm. No Farm state or command is injected.
+for (const input of ["pointer", "keyboard"] as const) {
+  test(`immediate ${input} harvest after menu clock suspension`, async ({ page }) => {
+    const openedAt = new Date("2026-10-15T12:00:00Z");
+    await page.clock.install({ time: openedAt });
+    // Freeze before App mounts, so its first periodic tick is still pending.
+    await page.clock.pauseAt(openedAt.getTime() + 100);
+    await page.goto("/");
+    await expect(page.getByRole("region", { name: "Main menu" })).toBeVisible();
+    // Hold scheduled callbacks, then move wall time forward as after a
+    // suspended tab. setSystemTime does not execute the periodic UI callback.
+    const beforeDwell = await page.evaluate(() => Date.now());
+    await page.clock.setSystemTime(beforeDwell + 60_000);
+    await page.getByRole("button", { name: "New Farm" }).click();
+    // Publish the real scene/camera after async assets load, allowing at most
+    // 960 ms of RAF time, below the first 2500 ms UI polling tick. Timers stay
+    // paused during the subsequent actual Resident/Harvest/Field interaction.
+    for (let frame = 0; frame < 60; frame += 1) {
+      await page.clock.runFor(16);
+      if (await page.getByRole("button", { name: /Farm Resident$/ }).count() === 2) {
+        break;
+      }
+      await page.waitForTimeout(25);
+    }
+    await expect(page.getByTestId("storage-summary-chip")).toBeVisible();
+    const { defaultId, otherId, otherName } = await residentPair(page);
+    const fresh = await savedFarm(page);
+    const wallNow = await page.evaluate(() => Date.now());
+    const ripe = fresh.field_plots.find((plot) =>
+      plot.crop?.item_id === "wheat" && plot.crop.ready_at_ms <= wallNow,
+    );
+    expect(ripe, "New Farm has authoritative ready Wheat immediately after the menu dwell").toBeTruthy();
+    const field = page.getByLabel(`Field Plot ${ripe!.id}`, { exact: true });
+    const resident = page.getByRole("region", { name: "Farm Residents" })
+      .getByRole("button", { name: new RegExp(`^${otherName}\\b`) });
+    const startSilo = await siloUsed(page);
+    const startWheat = fresh.inventory.wheat ?? 0;
+
+    if (input === "pointer") {
+      await resident.click();
+      await desktopHarvest(page).click();
+      await field.click();
+    } else {
+      await tabTo(page, resident);
+      await page.keyboard.press("Enter");
+      await tabTo(page, desktopHarvest(page));
+      await page.keyboard.press("Enter");
+      await tabTo(page, field);
+      await page.keyboard.press("Enter");
+    }
+    // Actual assignment must happen without a prerequisite polling tick or
+    // another action/time advance. Observe the real persisted chosen queue.
+    expect(await page.evaluate(() => Date.now())).toBe(wallNow);
+    await expectWorkSelection(page, otherId, otherName);
+    await test.info().attach("immediate-harvest-clock-boundary", {
+      contentType: "application/json",
+      body: JSON.stringify({
+        input, beforeDwell, wallNow, authoritativeReadyAt: ripe!.crop!.ready_at_ms,
+        savedLastUpdate: fresh.last_update_ms,
+        renderedAppearance: await field.getAttribute("data-wheat-appearance"),
+        selectedResident: (await savedFarm(page)).selected_resident_id,
+        chosenQueueLength: queueLength(await savedFarm(page), otherId),
+      }),
+    });
+    await expect.poll(async () => queueLength(await savedFarm(page), otherId)).toBe(1);
+    expect(queueLength(await savedFarm(page), defaultId)).toBe(0);
+    expect(await siloUsed(page)).toBe(startSilo);
+    expect((await savedFarm(page)).resident_last_harvest_deposit[otherId]).toBeUndefined();
+
+    // Time may advance only after the immediate command was accepted. The
+    // ordinary physical task must still deposit once for the chosen Resident.
+    await advanceUntil(page, async () => (await siloUsed(page)) !== startSilo);
+    expect(await siloUsed(page)).toBe(startSilo + wheatHarvestQuantity);
+    await persistBySelecting(page, defaultId);
+    const finished = await savedFarm(page);
+    expect(finished.resident_last_harvest_deposit[otherId]?.crop_id).toBe("wheat");
+    expect(finished.resident_last_harvest_deposit[defaultId]).toBeUndefined();
+    expect(finished.inventory.wheat ?? 0).toBe(startWheat + wheatHarvestQuantity);
+  });
+}
+
 test.describe("phone touch", () => {
   test.use({ viewport: phone, hasTouch: true, isMobile: true });
 
