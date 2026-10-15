@@ -280,6 +280,9 @@ export function App() {
         return false;
       }
       versionRef.current = nextVersion;
+      // New/reset snapshots may arrive before the next UI clock tick, or
+      // after timers were suspended. Readiness must use current time too.
+      setNowMs(Date.now());
       setView(nextView);
       setVersion(nextVersion);
       return true;
