@@ -33,7 +33,7 @@
     "ansi-styles": "^7.0.0",
     "base64-js": "^1.5.1",
     "buffer": "^6.0.3",
-    "chalk": "^4.0.0",
+    "chalk": "^6.0.0",
     "color-convert": "^2.0.1",
     "color-name": "^1.1.4",
     "event-target-shim": "^5.0.1",
