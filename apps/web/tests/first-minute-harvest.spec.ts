@@ -211,7 +211,35 @@ test.describe("desktop", () => {
     await tabTo(page, desktopHarvest(page));
     await page.keyboard.press("Enter");
     await expect(desktopHarvest(page)).toHaveAttribute("aria-pressed", "true");
-    await tabTo(page, page.getByLabel(`Field Plot ${ripePlotId}`, { exact: true }));
+    const field = page.getByLabel(`Field Plot ${ripePlotId}`, { exact: true });
+    await tabTo(page, field);
+    // Keyboard users must see which Field Plot Enter will activate. Inspect
+    // the target and any DOM/pseudo cue without choosing its color or shape.
+    const hasVisibleFocusCue = await field.evaluate((target) => {
+      const opacityAt = (element: Element) => {
+        let opacity = 1;
+        for (let ancestor: Element | null = element; ancestor; ancestor = ancestor.parentElement) {
+          opacity *= Number(getComputedStyle(ancestor).opacity);
+        }
+        return opacity;
+      };
+      return [target, ...target.querySelectorAll("*")].some((element) => {
+        if (opacityAt(element) === 0) {
+          return false;
+        }
+        return [null, "::before", "::after"].some((pseudo) => {
+          const style = getComputedStyle(element, pseudo);
+          if (pseudo && (style.content === "none" || style.content === "normal")) {
+            return false;
+          }
+          const outline = style.outlineStyle !== "none" && Number.parseFloat(style.outlineWidth) > 0;
+          const shadow = style.boxShadow !== "none";
+          return style.visibility === "visible" && Number(style.opacity) > 0 && (outline || shadow);
+        });
+      });
+    });
+    await page.screenshot({ path: test.info().outputPath("keyboard-field-focused.png") });
+    expect(hasVisibleFocusCue, "Keyboard focus must visibly identify the ripe Field Plot").toBe(true);
     await page.keyboard.press("Enter");
 
     await expect.poll(async () => queueLength(await savedFarm(page), otherId)).toBe(1);
