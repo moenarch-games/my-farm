@@ -1,7 +1,7 @@
 use my_farm_core::{
     CatalogDocument, CommandRequest, CommandResponse, FARM_STATE_SCHEMA_VERSION, FarmCommand,
     FarmNotice, FarmNoticeKind, FarmResponse, FarmState, StructureTarget, apply_command,
-    apply_elapsed, farm_view, new_farm,
+    apply_elapsed, farm_view, new_first_harvest_farm,
 };
 use serde::{Deserialize, Serialize};
 #[cfg(target_arch = "wasm32")]
@@ -44,7 +44,7 @@ impl DemoFarmRuntime {
         }
 
         Self {
-            farm: new_farm(now_ms_to_i64(now_ms), &catalog),
+            farm: new_first_harvest_farm(now_ms_to_i64(now_ms), &catalog),
             catalog,
             version: 0,
             load_notice: had_saved_json.then(save_reset_notice),
@@ -67,7 +67,7 @@ impl DemoFarmRuntime {
     }
 
     pub fn reset(&mut self, now_ms: f64) -> String {
-        self.farm = new_farm(now_ms_to_i64(now_ms), &self.catalog);
+        self.farm = new_first_harvest_farm(now_ms_to_i64(now_ms), &self.catalog);
         self.version = 0;
         serde_json::to_string(&FarmResponse {
             version: self.version,

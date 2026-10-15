@@ -30,7 +30,7 @@ export function FarmGuidance({ view, deposited, residentSelected, onDismiss, onI
     instruction = `${harvest.display_name} must finish harvesting and deposit the carried Crop. Queued work is not stored output; Tools return afterward.`;
   } else if (ready) {
     title = "Harvest the ready Crop";
-    instruction = "Choose Harvest and the ready Field Plot. Your Resident will carry the output to the Silo before returning Tools.";
+    instruction = "Select a Resident, choose Harvest, then select the ready Field Plot. That Resident harvests it and carries the Crop to the Silo before returning Tools.";
   } else if (planted) {
     title = "Watch your Crop grow";
     instruction = "Select the planted Field Plot to inspect progress. Wait for Ready, then use Harvest; the Silo stores the finished Crop.";
@@ -64,7 +64,7 @@ export function FarmGuidance({ view, deposited, residentSelected, onDismiss, onI
   return (
     <section className="farm-guidance" role="region" aria-label="Farm guidance">
       <div className="farm-guidance__copy" aria-live="polite">
-        <strong>{title}</strong>
+        <strong>{title}</strong>{" "}
         <p>{instruction}</p>
       </div>
       <div className="farm-guidance__actions">

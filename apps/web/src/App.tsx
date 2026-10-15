@@ -1056,6 +1056,43 @@ export function App() {
     }
   }, [send]);
 
+  // Keyboard activation of a Field Plot applies the active field tool to that
+  // one plot, through the same sweep commands as pointer input.
+  const applyFieldToolFromKeyboard = useCallback(
+    async (plotId: string) => {
+      if (!view || activeFieldTool.type === "default") {
+        return;
+      }
+      const plot = view.field_plots.find((entry) => entry.id === plotId);
+      const reservedReason = reservedFieldReason(view, plotId);
+      if (reservedReason) {
+        setMessage(reservedReason);
+        return;
+      }
+      let accepted;
+      if (activeFieldTool.type === "harvest") {
+        if (!plot?.crop || plot.crop.ready_at_ms > nowMs) {
+          return;
+        }
+        accepted = await send({ type: "sweep_harvest", harvest_mode: harvestMode, plot_ids: [plotId] });
+      } else {
+        const inventory = new Map(view.inventory.map((item) => [item.item_id, (item.available_quantity ?? item.quantity)]));
+        if (plot?.crop || (inventory.get(activeFieldTool.cropId) ?? 0) < 1) {
+          return;
+        }
+        accepted = await send({ type: "sweep_plant", crop_id: activeFieldTool.cropId, plot_ids: [plotId] });
+      }
+      if (accepted.accepted) {
+        setSelection({ type: "plot", id: plotId });
+        setFieldMenu(null);
+        setStructureMenu(null);
+        setBuildPlacement(null);
+        setBuildToolSelected(false);
+      }
+    },
+    [activeFieldTool, harvestMode, nowMs, send, view],
+  );
+
   const startHarvestSweep = useCallback(
     (plotId: string, pointerId: number) => {
       if (!view) {
@@ -1282,6 +1319,7 @@ export function App() {
             onStartPlantSweep={startPlantSweep}
             onEnterPlantSweepPlot={enterPlantSweepPlot}
             onStartHarvestSweep={startHarvestSweep}
+            onKeyboardFieldTool={applyFieldToolFromKeyboard}
             onEnterHarvestSweepPlot={enterHarvestSweepPlot}
             onCancelFieldToolAction={cancelFieldToolAction}
           />
