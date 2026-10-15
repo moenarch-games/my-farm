@@ -566,6 +566,7 @@ function farmViewWithTask(task: ResidentTask | null): FarmView {
     : undefined;
   return {
     resident_last_harvest_deposit: {},
+    concrete_chains: {},
     last_update_ms: 0,
     xp: 0,
     level: 1,

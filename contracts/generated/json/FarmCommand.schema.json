@@ -7,6 +7,29 @@
       "properties": {
         "type": {
           "type": "string",
+          "const": "admit_concrete_chain"
+        },
+        "chain_id": {
+          "type": "string"
+        },
+        "jobs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ConcreteJobRequest"
+          }
+        }
+      },
+      "required": [
+        "type",
+        "chain_id",
+        "jobs"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
           "const": "plant_crop"
         },
         "crop_id": {
@@ -600,6 +623,190 @@
     }
   ],
   "$defs": {
+    "ConcreteInput": {
+      "type": "object",
+      "properties": {
+        "item_id": {
+          "type": "string"
+        },
+        "quantity": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "source": {
+          "$ref": "#/$defs/ConcreteInputSource"
+        }
+      },
+      "required": [
+        "item_id",
+        "quantity",
+        "source"
+      ]
+    },
+    "ConcreteInputSource": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "stored"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "producer_output"
+            },
+            "chain_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "job_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "job_id"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "committed_task_output"
+            },
+            "resident_id": {
+              "type": "string"
+            },
+            "task_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "resident_id",
+            "task_id"
+          ]
+        }
+      ]
+    },
+    "ConcreteJobRequest": {
+      "type": "object",
+      "properties": {
+        "after": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "id": {
+          "type": "string"
+        },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ConcreteInput"
+          }
+        },
+        "resident_id": {
+          "type": "string"
+        },
+        "work": {
+          "$ref": "#/$defs/ConcreteWork"
+        }
+      },
+      "required": [
+        "id",
+        "resident_id",
+        "work",
+        "after",
+        "inputs"
+      ]
+    },
+    "ConcreteWork": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "plant_crop"
+            },
+            "crop_id": {
+              "type": "string"
+            },
+            "plot_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "plot_id",
+            "crop_id"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "harvest_crop"
+            },
+            "plot_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "plot_id"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "start_oven_recipe"
+            },
+            "recipe_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "recipe_id"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "collect_oven_job"
+            },
+            "producer_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "producer_id"
+          ]
+        }
+      ]
+    },
     "FarmhouseUpgradeKind": {
       "type": "string",
       "enum": [

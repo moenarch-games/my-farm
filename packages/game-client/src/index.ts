@@ -67,6 +67,7 @@ export type LegacyFarmView = Omit<
   | "resident_work"
   | "reservations"
   | "farm_shop"
+  | "concrete_chains"
 > & {
   silo_tile?: Tile | null;
   barn_tile?: Tile | null;
@@ -77,6 +78,7 @@ export type LegacyFarmView = Omit<
   resident_work?: { [key in string]?: LegacyResidentWorkView } | null;
   reservations?: FarmView["reservations"] | null;
   farm_shop?: LegacyFarmShopView | null;
+  concrete_chains?: FarmView["concrete_chains"] | null;
 };
 
 export type LegacyFarmShopView = Omit<NonNullable<FarmView["farm_shop"]>, "item_type_capacity" | "prices"> &
@@ -311,6 +313,7 @@ export function normalizeFarmView(view: LegacyFarmView): FarmView {
 
   return {
     ...view,
+    concrete_chains: view.concrete_chains ?? {},
     silo_tile: validTile(view.silo_tile) ? view.silo_tile : defaultSiloTile,
     barn_tile: validTile(view.barn_tile) ? view.barn_tile : defaultBarnTile,
     delivery_board_tile: validTile(view.delivery_board_tile)

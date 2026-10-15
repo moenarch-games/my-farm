@@ -77,6 +77,8 @@ function emptyCatalog(): CatalogDocument {
 
 function farmView(overrides: Partial<FarmView> = {}): FarmView {
   return {
+    concrete_chains: {},
+    resident_last_harvest_deposit: {},
     last_update_ms: 0,
     xp: 0,
     level: 1,
@@ -109,6 +111,7 @@ function farmView(overrides: Partial<FarmView> = {}): FarmView {
     },
     resident_work: {
       woman: {
+        stop_requested: false,
         resident_id: "woman",
         display_name: "Woman",
         selected: true,
@@ -118,6 +121,7 @@ function farmView(overrides: Partial<FarmView> = {}): FarmView {
         carry: { items: [], tools: [] },
       },
       man: {
+        stop_requested: false,
         resident_id: "man",
         display_name: "Man",
         selected: false,

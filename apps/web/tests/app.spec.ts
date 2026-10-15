@@ -3820,6 +3820,7 @@ const catalog: CatalogDocument = {
 };
 
 const farmView: FarmView = {
+  concrete_chains: {},
   resident_last_harvest_deposit: {},
   last_update_ms: Date.now(),
   xp: 14,
