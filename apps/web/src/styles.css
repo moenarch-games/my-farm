@@ -779,8 +779,9 @@ button[aria-disabled="true"] {
 }
 
 .field-hit-target {
-  width: 20px;
-  height: 18px;
+  /* Html distanceFactor=1 maps 400 CSS pixels to one world unit. */
+  width: 360px;
+  height: 360px;
   min-height: 0;
   padding: 0;
   border: 0;

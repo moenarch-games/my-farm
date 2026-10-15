@@ -1334,7 +1334,10 @@ function FieldMesh({
       </group>
       <Html
         position={[tileToWorld(plot.tile.x), 0.28, tileToWorld(plot.tile.y)]}
-        center
+        // Keep the hit area on its tile as the camera zooms and rotates.
+        transform
+        rotation={[-Math.PI / 2, 0, 0]}
+        distanceFactor={1}
         zIndexRange={[100, 0]}
         wrapperClass="field-hit-wrapper"
       >
