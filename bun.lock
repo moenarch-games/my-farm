@@ -85,7 +85,7 @@
         "zustand": "^3.7.1",
       },
       "devDependencies": {
-        "@types/react": "^18.3.27",
+        "@types/react": "18.3.31",
         "@types/three": "0.186.0",
         "babel-preset-expo": "11.0.15",
         "eas-cli": "20.5.1",
@@ -113,8 +113,8 @@
         "@storybook/addon-vitest": "10.6.2",
         "@storybook/builder-vite": "10.6.2",
         "@storybook/react-vite": "10.6.2",
-        "@types/react": "^18.3.27",
-        "@types/react-dom": "^18.3.7",
+        "@types/react": "18.3.31",
+        "@types/react-dom": "18.3.7",
         "@types/three": "0.186.0",
         "@vitest/browser-playwright": "4.1.12",
         "storybook": "10.6.2",
@@ -158,7 +158,7 @@
         "three": "^0.186.0",
       },
       "devDependencies": {
-        "@types/react": "^18.3.27",
+        "@types/react": "18.3.31",
         "@types/three": "0.186.0",
         "bun-types": "1.4.3",
       },
