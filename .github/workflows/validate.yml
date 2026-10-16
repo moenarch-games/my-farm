@@ -159,6 +159,20 @@ jobs:
           targets: wasm32-unknown-unknown
           components: rustfmt
 
+      # Rust compilation dominates this job; reuse its dependency and test
+      # outputs across unchanged lockfiles, with Cargo checking source changes.
+      - name: Cache Cargo test builds
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-${{ runner.arch }}-my-farm-core-rust-1.99.1-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-my-farm-core-rust-1.99.1-
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
