@@ -28,15 +28,47 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # The shared artifact workflow keys reuse by source SHA. Resolve the most recent
+  # first-parent commit that changed any artwork input, rather than every app commit.
+  # This keeps exact-commit receipts and makes unrelated changes share one artifact.
+  resolve-farm-art-source:
+    name: Resolve pinned artwork revision
+    runs-on: ubuntu-latest
+    outputs:
+      source_sha: ${{ steps.revision.outputs.source_sha }}
+    steps:
+      - name: Checkout exact source with history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Resolve artwork input revision
+        id: revision
+        run: |
+          set -euo pipefail
+          art_inputs=(
+            scripts/farm-art-source.json
+            scripts/build-farm-art.sh
+            scripts/stage-farm-art.mjs
+            scripts/verify-farm-art.mjs
+          )
+          source_sha="$(git log --first-parent -1 --format=%H -- "${art_inputs[@]}")"
+          test -n "$source_sha"
+          # Never reuse earlier assets if their generator inputs differ from this head.
+          git diff --quiet "$source_sha" HEAD -- "${art_inputs[@]}"
+          echo "source_sha=$source_sha" >> "$GITHUB_OUTPUT"
+
   build-farm-art:
     name: Build pinned Wheat art
+    needs: resolve-farm-art-source
     permissions:
       actions: read
       contents: read
       packages: read
     uses: moritzbrantner/reusable-workflows/.github/workflows/build-artifact.yml@5291d5162b128faca9dd83edba24e7342730e604
     with:
-      source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+      source_sha: ${{ needs.resolve-farm-art-source.outputs.source_sha }}
       artifact_key: my-farm-wheat-art-v1
       bun_version: "1.4.3"
       use_environment_v1: false
