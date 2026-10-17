@@ -49,6 +49,10 @@ for (const width of [1280, 390]) {
     expect(totalHoes(loaded)).toBe(1);
 
     await page.clock.fastForward(180_000);
+    // React 19 holds commits behind setTimeout-based throttles (e.g. the 300 ms
+    // Suspense reveal throttle). Under the paused clock those timers only fire
+    // when fake time advances, so let a little more time pass before interacting.
+    await page.clock.runFor(1_000);
     await selectResident(page, "Man");
     const finished = await saved(page);
     expect(finished.resident_task_queues.woman ?? []).toHaveLength(0);
