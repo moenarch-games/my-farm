@@ -22,7 +22,7 @@
     "@my-farm/game-model": "workspace:*",
     "@react-three/drei": "^10.0.0",
     "@react-three/fiber": "^8.17.10",
-    "@vitejs/plugin-react": "^4.4.1",
+    "@vitejs/plugin-react": "^6.0.0",
     "lucide-react": "^1.23.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
