@@ -22,7 +22,7 @@
     "@my-farm/game-model": "workspace:*",
     "@react-three/drei": "^10.0.0",
     "@react-three/fiber": "^8.17.10",
-    "@vitejs/plugin-react": "^4.4.1",
+    "@vitejs/plugin-react": "^6.1.2",
     "lucide-react": "^1.23.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -36,10 +36,10 @@
     "@types/react": "18.3.31",
     "@types/react-dom": "18.3.7",
     "@types/three": "0.186.0",
-    "@vitest/browser-playwright": "4.1.12",
+    "@vitest/browser-playwright": "5.0.5",
     "storybook": "10.6.2",
     "typescript": "5.9.3",
-    "vite": "7.3.7",
-    "vitest": "4.1.12"
+    "vite": "8.3.4",
+    "vitest": "5.0.5"
   }
 }
