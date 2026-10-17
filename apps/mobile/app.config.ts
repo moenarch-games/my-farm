@@ -7,7 +7,6 @@ const config: ExpoConfig = {
   version: "0.1.0",
   orientation: "portrait",
   userInterfaceStyle: "light",
-  newArchEnabled: false,
   splash: {
     backgroundColor: "#9fd3d1",
   },

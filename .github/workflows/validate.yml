@@ -188,6 +188,22 @@ jobs:
       - name: Test mobile model and UI logic
         run: bun run test:mobile
 
+      # Catch Expo SDK drift: SDK-bound packages that disagree with the
+      # installed SDK, type errors, or Metro failing to bundle the app.
+      - name: Check mobile Expo SDK alignment
+        working-directory: apps/mobile
+        run: bunx expo install --check
+
+      - name: Typecheck mobile app
+        working-directory: apps/mobile
+        run: bun run typecheck
+
+      - name: Bundle mobile app for Android and iOS
+        working-directory: apps/mobile
+        run: |
+          bunx expo export --platform android --output-dir "$RUNNER_TEMP/mobile-export-android"
+          bunx expo export --platform ios --output-dir "$RUNNER_TEMP/mobile-export-ios"
+
       - name: Test authoritative Wheat appearance mapping
         run: bun run test:wheat
 
