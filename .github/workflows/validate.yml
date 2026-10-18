@@ -3,12 +3,6 @@ name: Validate
 # Documentation-only edits do not need build artifacts or browser validation.
 on:
   pull_request:
-    paths-ignore:
-      - "AGENTS.md"
-      - "CLAUDE.md"
-      - "CONTEXT.md"
-      - "README.md"
-      - "docs/**"
   push:
     branches: ["main"]
     paths-ignore:
@@ -37,6 +31,7 @@ jobs:
     outputs:
       source_sha: ${{ steps.revision.outputs.source_sha }}
       wasm_source_sha: ${{ steps.revision.outputs.wasm_source_sha }}
+      docs_only: ${{ steps.scope.outputs.docs_only }}
     steps:
       - name: Checkout exact source with history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -44,8 +39,26 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
+      - name: Classify documentation-only PRs
+        id: scope
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          node --test scripts/ci-docs-only.test.mjs
+          docs_only=false
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" && -n "$PR_BASE" && -n "$PR_HEAD" ]] &&
+            git cat-file -e "$PR_BASE^{commit}" && git cat-file -e "$PR_HEAD^{commit}" &&
+            git diff --no-renames --name-only -z "$PR_BASE...$PR_HEAD" > "$RUNNER_TEMP/changed-files";
+          then
+            docs_only="$(node scripts/ci-docs-only.mjs "$RUNNER_TEMP/changed-files")"
+          fi
+          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
+
       - name: Resolve artwork input revision
         id: revision
+        if: steps.scope.outputs.docs_only != 'true'
         run: |
           set -euo pipefail
           art_inputs=(
@@ -80,6 +93,7 @@ jobs:
           echo "wasm_source_sha=$wasm_source_sha" >> "$GITHUB_OUTPUT"
 
   build-farm-art:
+    if: needs.resolve-farm-art-source.outputs.docs_only != 'true'
     name: Build pinned Wheat art
     needs: resolve-farm-art-source
     permissions:
@@ -100,6 +114,7 @@ jobs:
       timeout_minutes: 45
 
   build-wasm-demo:
+    if: needs.resolve-farm-art-source.outputs.docs_only != 'true'
     name: Build or reuse WASM demo
     needs: resolve-farm-art-source
     permissions:
@@ -139,6 +154,8 @@ jobs:
       timeout_minutes: 30
 
   validate-core:
+    if: needs.resolve-farm-art-source.outputs.docs_only != 'true'
+    needs: resolve-farm-art-source
     name: Core validation
     runs-on: ubuntu-latest
     steps:
@@ -208,8 +225,10 @@ jobs:
         run: bun run test:wheat
 
   validate-web:
+    if: needs.resolve-farm-art-source.outputs.docs_only != 'true'
     name: Web validation
     needs:
+      - resolve-farm-art-source
       - build-farm-art
       - build-wasm-demo
     runs-on: ubuntu-latest
@@ -310,13 +329,16 @@ jobs:
           if-no-files-found: ignore
 
   validate:
-    name: validate
-    needs:
-      - validate-core
-      - validate-web
+    name: merge-ready
+    if: ${{ always() }}
+    needs: [resolve-farm-art-source, build-farm-art, build-wasm-demo, validate-core, validate-web]
     runs-on: ubuntu-latest
     steps:
-      - run: echo "Exact-head core and web validation succeeded."
+      - uses: moritzbrantner/reusable-workflows/.github/actions/merge-ready@b0f25f241d76af2584dfc9e375084ff5c5cb97da
+        with:
+          needs: ${{ toJSON(needs) }}
+          required: '["resolve-farm-art-source","build-farm-art","build-wasm-demo","validate-core","validate-web"]'
+          allow-skipped: ${{ needs.resolve-farm-art-source.outputs.docs_only == 'true' && '["build-farm-art","build-wasm-demo","validate-core","validate-web"]' || '[]' }}
 
   pages-build:
     name: Build Pages from verified WASM
