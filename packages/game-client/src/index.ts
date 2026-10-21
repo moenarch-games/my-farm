@@ -368,12 +368,14 @@ function validResidentWork(
 function normalizeResidentWork(
   work: NonNullable<LegacyFarmView["resident_work"]>,
 ): FarmView["resident_work"] {
-  return Object.fromEntries(Object.entries(work).map(([residentId, entry]) => {
-    if (entry === undefined) {
-      return [residentId, undefined];
-    }
-    return [residentId, { ...entry, stop_requested: entry.stop_requested ?? false }];
-  }));
+  // Map values are no longer optional in the generated contracts (ts-rs 12); drop absent entries.
+  return Object.fromEntries(
+    Object.entries(work).flatMap(([residentId, entry]) =>
+      entry === undefined
+        ? []
+        : [[residentId, { ...entry, stop_requested: entry.stop_requested ?? false }]],
+    ),
+  );
 }
 
 function defaultResidentLocationsFor(residents: FarmResident[]): FarmView["resident_locations"] {
