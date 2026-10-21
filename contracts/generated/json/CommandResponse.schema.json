@@ -118,10 +118,6 @@
         {
           "type": "object",
           "properties": {
-            "type": {
-              "type": "string",
-              "const": "producing"
-            },
             "fed_at_ms": {
               "type": "integer",
               "format": "int64"
@@ -129,6 +125,10 @@
             "ready_at_ms": {
               "type": "integer",
               "format": "int64"
+            },
+            "type": {
+              "type": "string",
+              "const": "producing"
             }
           },
           "required": [
@@ -226,10 +226,6 @@
         {
           "type": "object",
           "properties": {
-            "type": {
-              "type": "string",
-              "const": "producer_output"
-            },
             "chain_id": {
               "type": [
                 "string",
@@ -238,6 +234,10 @@
             },
             "job_id": {
               "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "producer_output"
             }
           },
           "required": [
@@ -248,15 +248,15 @@
         {
           "type": "object",
           "properties": {
-            "type": {
-              "type": "string",
-              "const": "committed_task_output"
-            },
             "resident_id": {
               "type": "string"
             },
             "task_id": {
               "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "committed_task_output"
             }
           },
           "required": [
@@ -359,12 +359,12 @@
         {
           "type": "object",
           "properties": {
+            "crop_id": {
+              "type": "string"
+            },
             "type": {
               "type": "string",
               "const": "crop_planted"
-            },
-            "crop_id": {
-              "type": "string"
             }
           },
           "required": [
@@ -375,10 +375,6 @@
         {
           "type": "object",
           "properties": {
-            "type": {
-              "type": "string",
-              "const": "crop_harvested"
-            },
             "crop_id": {
               "type": "string"
             },
@@ -386,6 +382,10 @@
               "type": "integer",
               "format": "uint32",
               "minimum": 0
+            },
+            "type": {
+              "type": "string",
+              "const": "crop_harvested"
             }
           },
           "required": [
@@ -397,12 +397,12 @@
         {
           "type": "object",
           "properties": {
+            "plot_id": {
+              "type": "string"
+            },
             "type": {
               "type": "string",
               "const": "field_plot_built"
-            },
-            "plot_id": {
-              "type": "string"
             }
           },
           "required": [
@@ -413,12 +413,12 @@
         {
           "type": "object",
           "properties": {
+            "structure_kind": {
+              "$ref": "#/$defs/StructureKind"
+            },
             "type": {
               "type": "string",
               "const": "structure_built"
-            },
-            "structure_kind": {
-              "$ref": "#/$defs/StructureKind"
             }
           },
           "required": [
@@ -445,10 +445,6 @@
         {
           "type": "object",
           "properties": {
-            "type": {
-              "type": "string",
-              "const": "storage_upgraded"
-            },
             "capacity": {
               "type": "integer",
               "format": "uint32",
@@ -461,6 +457,10 @@
               "type": "integer",
               "format": "uint32",
               "minimum": 0
+            },
+            "type": {
+              "type": "string",
+              "const": "storage_upgraded"
             }
           },
           "required": [
@@ -473,15 +473,15 @@
         {
           "type": "object",
           "properties": {
-            "type": {
-              "type": "string",
-              "const": "structure_moved"
-            },
             "target": {
               "$ref": "#/$defs/StructureTarget"
             },
             "tile": {
               "$ref": "#/$defs/Tile"
+            },
+            "type": {
+              "type": "string",
+              "const": "structure_moved"
             }
           },
           "required": [
@@ -493,12 +493,12 @@
         {
           "type": "object",
           "properties": {
+            "recipe_id": {
+              "type": "string"
+            },
             "type": {
               "type": "string",
               "const": "recipe_queued"
-            },
-            "recipe_id": {
-              "type": "string"
             }
           },
           "required": [
@@ -509,12 +509,12 @@
         {
           "type": "object",
           "properties": {
+            "recipe_id": {
+              "type": "string"
+            },
             "type": {
               "type": "string",
               "const": "machine_job_collected"
-            },
-            "recipe_id": {
-              "type": "string"
             }
           },
           "required": [
@@ -525,12 +525,12 @@
         {
           "type": "object",
           "properties": {
+            "shelter_id": {
+              "type": "string"
+            },
             "type": {
               "type": "string",
               "const": "animal_fed"
-            },
-            "shelter_id": {
-              "type": "string"
             }
           },
           "required": [
@@ -541,12 +541,12 @@
         {
           "type": "object",
           "properties": {
+            "item_id": {
+              "type": "string"
+            },
             "type": {
               "type": "string",
               "const": "animal_product_collected"
-            },
-            "item_id": {
-              "type": "string"
             }
           },
           "required": [
@@ -557,12 +557,12 @@
         {
           "type": "object",
           "properties": {
+            "order_id": {
+              "type": "string"
+            },
             "type": {
               "type": "string",
               "const": "delivery_order_fulfilled"
-            },
-            "order_id": {
-              "type": "string"
             }
           },
           "required": [
@@ -573,12 +573,12 @@
         {
           "type": "object",
           "properties": {
+            "order_id": {
+              "type": "string"
+            },
             "type": {
               "type": "string",
               "const": "delivery_order_discarded"
-            },
-            "order_id": {
-              "type": "string"
             }
           },
           "required": [
@@ -589,10 +589,6 @@
         {
           "type": "object",
           "properties": {
-            "type": {
-              "type": "string",
-              "const": "inventory_discarded"
-            },
             "item_id": {
               "type": "string"
             },
@@ -600,6 +596,10 @@
               "type": "integer",
               "format": "uint32",
               "minimum": 0
+            },
+            "type": {
+              "type": "string",
+              "const": "inventory_discarded"
             }
           },
           "required": [
@@ -611,12 +611,12 @@
         {
           "type": "object",
           "properties": {
+            "resident_id": {
+              "type": "string"
+            },
             "type": {
               "type": "string",
               "const": "resident_selected"
-            },
-            "resident_id": {
-              "type": "string"
             }
           },
           "required": [
@@ -627,10 +627,6 @@
         {
           "type": "object",
           "properties": {
-            "type": {
-              "type": "string",
-              "const": "resident_task_reordered"
-            },
             "before_task_id": {
               "type": [
                 "string",
@@ -643,6 +639,10 @@
             },
             "task_id": {
               "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "resident_task_reordered"
             }
           },
           "required": [
@@ -654,15 +654,15 @@
         {
           "type": "object",
           "properties": {
-            "type": {
-              "type": "string",
-              "const": "resident_renamed"
-            },
             "display_name": {
               "type": "string"
             },
             "resident_id": {
               "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "resident_renamed"
             }
           },
           "required": [
@@ -674,10 +674,6 @@
         {
           "type": "object",
           "properties": {
-            "type": {
-              "type": "string",
-              "const": "market_item_bought"
-            },
             "coins_spent": {
               "type": "integer",
               "format": "uint32",
@@ -690,6 +686,10 @@
               "type": "integer",
               "format": "uint32",
               "minimum": 0
+            },
+            "type": {
+              "type": "string",
+              "const": "market_item_bought"
             }
           },
           "required": [
@@ -702,22 +702,22 @@
         {
           "type": "object",
           "properties": {
+            "coins_gained": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "item_id": {
+              "type": "string"
+            },
+            "quantity": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
             "type": {
               "type": "string",
               "const": "market_item_sold"
-            },
-            "coins_gained": {
-              "type": "integer",
-              "format": "uint32",
-              "minimum": 0
-            },
-            "item_id": {
-              "type": "string"
-            },
-            "quantity": {
-              "type": "integer",
-              "format": "uint32",
-              "minimum": 0
             }
           },
           "required": [
@@ -730,17 +730,17 @@
         {
           "type": "object",
           "properties": {
+            "item_id": {
+              "type": "string"
+            },
+            "quantity": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
             "type": {
               "type": "string",
               "const": "farm_shop_stocked"
-            },
-            "item_id": {
-              "type": "string"
-            },
-            "quantity": {
-              "type": "integer",
-              "format": "uint32",
-              "minimum": 0
             }
           },
           "required": [
@@ -752,17 +752,17 @@
         {
           "type": "object",
           "properties": {
+            "item_id": {
+              "type": "string"
+            },
+            "quantity": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
             "type": {
               "type": "string",
               "const": "farm_shop_unstocked"
-            },
-            "item_id": {
-              "type": "string"
-            },
-            "quantity": {
-              "type": "integer",
-              "format": "uint32",
-              "minimum": 0
             }
           },
           "required": [
@@ -774,10 +774,6 @@
         {
           "type": "object",
           "properties": {
-            "type": {
-              "type": "string",
-              "const": "farm_shop_sale_completed"
-            },
             "coins_gained": {
               "type": "integer",
               "format": "uint32",
@@ -790,6 +786,10 @@
               "type": "integer",
               "format": "uint32",
               "minimum": 0
+            },
+            "type": {
+              "type": "string",
+              "const": "farm_shop_sale_completed"
             }
           },
           "required": [
@@ -802,10 +802,6 @@
         {
           "type": "object",
           "properties": {
-            "type": {
-              "type": "string",
-              "const": "farm_shop_price_set"
-            },
             "item_id": {
               "type": "string"
             },
@@ -813,6 +809,10 @@
               "type": "integer",
               "format": "uint32",
               "minimum": 0
+            },
+            "type": {
+              "type": "string",
+              "const": "farm_shop_price_set"
             }
           },
           "required": [
@@ -824,10 +824,6 @@
         {
           "type": "object",
           "properties": {
-            "type": {
-              "type": "string",
-              "const": "farm_shop_visit_rejected"
-            },
             "base_price": {
               "type": "integer",
               "format": "uint32",
@@ -845,6 +841,10 @@
               "type": "integer",
               "format": "uint32",
               "minimum": 0
+            },
+            "type": {
+              "type": "string",
+              "const": "farm_shop_visit_rejected"
             }
           },
           "required": [
@@ -858,10 +858,6 @@
         {
           "type": "object",
           "properties": {
-            "type": {
-              "type": "string",
-              "const": "decoration_placed"
-            },
             "decoration_id": {
               "type": "string"
             },
@@ -873,6 +869,10 @@
             },
             "tile": {
               "$ref": "#/$defs/RoomTile"
+            },
+            "type": {
+              "type": "string",
+              "const": "decoration_placed"
             }
           },
           "required": [
@@ -886,10 +886,6 @@
         {
           "type": "object",
           "properties": {
-            "type": {
-              "type": "string",
-              "const": "decoration_moved"
-            },
             "placement_id": {
               "type": "string"
             },
@@ -898,6 +894,10 @@
             },
             "tile": {
               "$ref": "#/$defs/RoomTile"
+            },
+            "type": {
+              "type": "string",
+              "const": "decoration_moved"
             }
           },
           "required": [
@@ -910,15 +910,15 @@
         {
           "type": "object",
           "properties": {
-            "type": {
-              "type": "string",
-              "const": "decoration_removed"
-            },
             "placement_id": {
               "type": "string"
             },
             "room_id": {
               "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "decoration_removed"
             }
           },
           "required": [
@@ -930,14 +930,14 @@
         {
           "type": "object",
           "properties": {
-            "type": {
-              "type": "string",
-              "const": "level_changed"
-            },
             "level": {
               "type": "integer",
               "format": "uint32",
               "minimum": 0
+            },
+            "type": {
+              "type": "string",
+              "const": "level_changed"
             }
           },
           "required": [
@@ -2394,12 +2394,12 @@
         {
           "type": "object",
           "properties": {
+            "id": {
+              "type": "string"
+            },
             "type": {
               "type": "string",
               "const": "machine"
-            },
-            "id": {
-              "type": "string"
             }
           },
           "required": [
@@ -2410,12 +2410,12 @@
         {
           "type": "object",
           "properties": {
+            "id": {
+              "type": "string"
+            },
             "type": {
               "type": "string",
               "const": "shelter"
-            },
-            "id": {
-              "type": "string"
             }
           },
           "required": [
@@ -2438,12 +2438,12 @@
         {
           "type": "object",
           "properties": {
+            "id": {
+              "type": "string"
+            },
             "type": {
               "type": "string",
               "const": "tool_shed"
-            },
-            "id": {
-              "type": "string"
             }
           },
           "required": [
@@ -2454,12 +2454,12 @@
         {
           "type": "object",
           "properties": {
+            "id": {
+              "type": "string"
+            },
             "type": {
               "type": "string",
               "const": "farm_shop"
-            },
-            "id": {
-              "type": "string"
             }
           },
           "required": [
@@ -2509,11 +2509,44 @@
         },
         "tool_stock": {
           "type": "object",
-          "additionalProperties": {
-            "type": "integer",
-            "format": "uint32",
-            "minimum": 0
+          "properties": {
+            "collection_pail": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "feed_bucket": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "hoe": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "mixing_bowl": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "oven_mitt": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "sickle": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "wrench": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            }
           },
+          "additionalProperties": false,
           "default": {
             "collection_pail": 1,
             "feed_bucket": 1,
