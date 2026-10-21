@@ -79,11 +79,44 @@
     },
     "farmhouse_tool_stock": {
       "type": "object",
-      "additionalProperties": {
-        "type": "integer",
-        "format": "uint32",
-        "minimum": 0
+      "properties": {
+        "collection_pail": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "feed_bucket": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "hoe": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "mixing_bowl": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "oven_mitt": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "sickle": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "wrench": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
       },
+      "additionalProperties": false,
       "default": {
         "collection_pail": 1,
         "feed_bucket": 1,
@@ -1034,10 +1067,6 @@
         {
           "type": "object",
           "properties": {
-            "type": {
-              "type": "string",
-              "const": "producing"
-            },
             "fed_at_ms": {
               "type": "integer",
               "format": "int64"
@@ -1045,6 +1074,10 @@
             "ready_at_ms": {
               "type": "integer",
               "format": "int64"
+            },
+            "type": {
+              "type": "string",
+              "const": "producing"
             }
           },
           "required": [
@@ -1154,10 +1187,6 @@
         {
           "type": "object",
           "properties": {
-            "type": {
-              "type": "string",
-              "const": "producer_output"
-            },
             "chain_id": {
               "type": [
                 "string",
@@ -1166,6 +1195,10 @@
             },
             "job_id": {
               "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "producer_output"
             }
           },
           "required": [
@@ -1176,15 +1209,15 @@
         {
           "type": "object",
           "properties": {
-            "type": {
-              "type": "string",
-              "const": "committed_task_output"
-            },
             "resident_id": {
               "type": "string"
             },
             "task_id": {
               "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "committed_task_output"
             }
           },
           "required": [
@@ -1295,15 +1328,15 @@
         {
           "type": "object",
           "properties": {
-            "type": {
-              "type": "string",
-              "const": "plant_crop"
-            },
             "crop_id": {
               "type": "string"
             },
             "plot_id": {
               "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "plant_crop"
             }
           },
           "required": [
@@ -1315,12 +1348,12 @@
         {
           "type": "object",
           "properties": {
+            "plot_id": {
+              "type": "string"
+            },
             "type": {
               "type": "string",
               "const": "harvest_crop"
-            },
-            "plot_id": {
-              "type": "string"
             }
           },
           "required": [
@@ -1331,12 +1364,12 @@
         {
           "type": "object",
           "properties": {
+            "recipe_id": {
+              "type": "string"
+            },
             "type": {
               "type": "string",
               "const": "start_oven_recipe"
-            },
-            "recipe_id": {
-              "type": "string"
             }
           },
           "required": [
@@ -1347,12 +1380,12 @@
         {
           "type": "object",
           "properties": {
+            "producer_id": {
+              "type": "string"
+            },
             "type": {
               "type": "string",
               "const": "collect_oven_job"
-            },
-            "producer_id": {
-              "type": "string"
             }
           },
           "required": [
@@ -1916,12 +1949,12 @@
         {
           "type": "object",
           "properties": {
+            "machine_kind": {
+              "$ref": "#/$defs/MachineKind"
+            },
             "type": {
               "type": "string",
               "const": "machine"
-            },
-            "machine_kind": {
-              "$ref": "#/$defs/MachineKind"
             }
           },
           "required": [
@@ -1972,12 +2005,12 @@
         {
           "type": "object",
           "properties": {
+            "plot_id": {
+              "type": "string"
+            },
             "type": {
               "type": "string",
               "const": "field_plot"
-            },
-            "plot_id": {
-              "type": "string"
             }
           },
           "required": [
@@ -1988,12 +2021,12 @@
         {
           "type": "object",
           "properties": {
+            "machine_id": {
+              "type": "string"
+            },
             "type": {
               "type": "string",
               "const": "machine"
-            },
-            "machine_id": {
-              "type": "string"
             }
           },
           "required": [
@@ -2016,12 +2049,12 @@
         {
           "type": "object",
           "properties": {
+            "shop_id": {
+              "type": "string"
+            },
             "type": {
               "type": "string",
               "const": "farm_shop"
-            },
-            "shop_id": {
-              "type": "string"
             }
           },
           "required": [
@@ -2032,15 +2065,15 @@
         {
           "type": "object",
           "properties": {
-            "type": {
-              "type": "string",
-              "const": "animal"
-            },
             "animal_slot": {
               "type": "string"
             },
             "shelter_id": {
               "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "animal"
             }
           },
           "required": [
@@ -2069,18 +2102,72 @@
         },
         "tool_sources": {
           "type": "object",
-          "additionalProperties": {
-            "$ref": "#/$defs/ToolSourceRef"
+          "properties": {
+            "collection_pail": {
+              "$ref": "#/$defs/ToolSourceRef"
+            },
+            "feed_bucket": {
+              "$ref": "#/$defs/ToolSourceRef"
+            },
+            "hoe": {
+              "$ref": "#/$defs/ToolSourceRef"
+            },
+            "mixing_bowl": {
+              "$ref": "#/$defs/ToolSourceRef"
+            },
+            "oven_mitt": {
+              "$ref": "#/$defs/ToolSourceRef"
+            },
+            "sickle": {
+              "$ref": "#/$defs/ToolSourceRef"
+            },
+            "wrench": {
+              "$ref": "#/$defs/ToolSourceRef"
+            }
           },
+          "additionalProperties": false,
           "default": {}
         },
         "tools": {
           "type": "object",
-          "additionalProperties": {
-            "type": "integer",
-            "format": "uint32",
-            "minimum": 0
-          }
+          "properties": {
+            "collection_pail": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "feed_bucket": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "hoe": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "mixing_bowl": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "oven_mitt": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "sickle": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "wrench": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
         }
       },
       "required": [
@@ -2218,10 +2305,6 @@
         {
           "type": "object",
           "properties": {
-            "type": {
-              "type": "string",
-              "const": "pickup_items"
-            },
             "items": {
               "type": "array",
               "items": {
@@ -2230,6 +2313,10 @@
             },
             "source": {
               "$ref": "#/$defs/StorageSourceRef"
+            },
+            "type": {
+              "type": "string",
+              "const": "pickup_items"
             }
           },
           "required": [
@@ -2241,10 +2328,6 @@
         {
           "type": "object",
           "properties": {
-            "type": {
-              "type": "string",
-              "const": "pickup_tools"
-            },
             "source": {
               "$ref": "#/$defs/ToolSourceRef"
             },
@@ -2253,6 +2336,10 @@
               "items": {
                 "$ref": "#/$defs/ToolStack"
               }
+            },
+            "type": {
+              "type": "string",
+              "const": "pickup_tools"
             }
           },
           "required": [
@@ -2264,12 +2351,12 @@
         {
           "type": "object",
           "properties": {
+            "crop_id": {
+              "type": "string"
+            },
             "type": {
               "type": "string",
               "const": "plant_crop"
-            },
-            "crop_id": {
-              "type": "string"
             }
           },
           "required": [
@@ -2280,10 +2367,6 @@
         {
           "type": "object",
           "properties": {
-            "type": {
-              "type": "string",
-              "const": "harvest_crop"
-            },
             "crop_id": {
               "type": "string"
             },
@@ -2291,6 +2374,10 @@
               "type": "integer",
               "format": "uint32",
               "minimum": 0
+            },
+            "type": {
+              "type": "string",
+              "const": "harvest_crop"
             }
           },
           "required": [
@@ -2302,15 +2389,15 @@
         {
           "type": "object",
           "properties": {
+            "job_id": {
+              "type": "string"
+            },
+            "recipe_id": {
+              "type": "string"
+            },
             "type": {
               "type": "string",
               "const": "collect_machine_job"
-            },
-            "job_id": {
-              "type": "string"
-            },
-            "recipe_id": {
-              "type": "string"
             }
           },
           "required": [
@@ -2322,15 +2409,15 @@
         {
           "type": "object",
           "properties": {
+            "job_id": {
+              "type": "string"
+            },
+            "recipe_id": {
+              "type": "string"
+            },
             "type": {
               "type": "string",
               "const": "start_oven_recipe"
-            },
-            "job_id": {
-              "type": "string"
-            },
-            "recipe_id": {
-              "type": "string"
             }
           },
           "required": [
@@ -2342,15 +2429,15 @@
         {
           "type": "object",
           "properties": {
-            "type": {
-              "type": "string",
-              "const": "collect_oven_job"
-            },
             "job_id": {
               "type": "string"
             },
             "recipe_id": {
               "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "collect_oven_job"
             }
           },
           "required": [
@@ -2374,17 +2461,17 @@
         {
           "type": "object",
           "properties": {
+            "item_id": {
+              "type": "string"
+            },
+            "quantity": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
             "type": {
               "type": "string",
               "const": "collect_animal_product"
-            },
-            "item_id": {
-              "type": "string"
-            },
-            "quantity": {
-              "type": "integer",
-              "format": "uint32",
-              "minimum": 0
             }
           },
           "required": [
@@ -2396,17 +2483,17 @@
         {
           "type": "object",
           "properties": {
+            "item_id": {
+              "type": "string"
+            },
+            "quantity": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
             "type": {
               "type": "string",
               "const": "deposit_inventory"
-            },
-            "item_id": {
-              "type": "string"
-            },
-            "quantity": {
-              "type": "integer",
-              "format": "uint32",
-              "minimum": 0
             }
           },
           "required": [
@@ -2418,10 +2505,6 @@
         {
           "type": "object",
           "properties": {
-            "type": {
-              "type": "string",
-              "const": "deposit_items"
-            },
             "destination": {
               "$ref": "#/$defs/StorageSourceRef"
             },
@@ -2430,6 +2513,10 @@
               "items": {
                 "$ref": "#/$defs/ItemStack"
               }
+            },
+            "type": {
+              "type": "string",
+              "const": "deposit_items"
             }
           },
           "required": [
@@ -2441,15 +2528,15 @@
         {
           "type": "object",
           "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ItemStack"
+              }
+            },
             "type": {
               "type": "string",
               "const": "deposit_shop_stock"
-            },
-            "items": {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/ItemStack"
-              }
             }
           },
           "required": [
@@ -2460,15 +2547,15 @@
         {
           "type": "object",
           "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ItemStack"
+              }
+            },
             "type": {
               "type": "string",
               "const": "pickup_shop_stock"
-            },
-            "items": {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/ItemStack"
-              }
             }
           },
           "required": [
@@ -2479,10 +2566,6 @@
         {
           "type": "object",
           "properties": {
-            "type": {
-              "type": "string",
-              "const": "return_tools"
-            },
             "source": {
               "$ref": "#/$defs/ToolSourceRef",
               "default": {
@@ -2495,6 +2578,10 @@
               "items": {
                 "$ref": "#/$defs/ToolStack"
               }
+            },
+            "type": {
+              "type": "string",
+              "const": "return_tools"
             }
           },
           "required": [
@@ -2638,11 +2725,44 @@
         },
         "tool_stock": {
           "type": "object",
-          "additionalProperties": {
-            "type": "integer",
-            "format": "uint32",
-            "minimum": 0
+          "properties": {
+            "collection_pail": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "feed_bucket": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "hoe": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "mixing_bowl": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "oven_mitt": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "sickle": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "wrench": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            }
           },
+          "additionalProperties": false,
           "default": {
             "collection_pail": 1,
             "feed_bucket": 1,
@@ -2676,12 +2796,12 @@
         {
           "type": "object",
           "properties": {
+            "id": {
+              "type": "string"
+            },
             "type": {
               "type": "string",
               "const": "tool_shed"
-            },
-            "id": {
-              "type": "string"
             }
           },
           "required": [

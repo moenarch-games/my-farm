@@ -5,10 +5,6 @@
     {
       "type": "object",
       "properties": {
-        "type": {
-          "type": "string",
-          "const": "admit_concrete_chain"
-        },
         "chain_id": {
           "type": "string"
         },
@@ -17,6 +13,10 @@
           "items": {
             "$ref": "#/$defs/ConcreteJobRequest"
           }
+        },
+        "type": {
+          "type": "string",
+          "const": "admit_concrete_chain"
         }
       },
       "required": [
@@ -28,15 +28,15 @@
     {
       "type": "object",
       "properties": {
-        "type": {
-          "type": "string",
-          "const": "plant_crop"
-        },
         "crop_id": {
           "type": "string"
         },
         "plot_id": {
           "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "const": "plant_crop"
         }
       },
       "required": [
@@ -48,10 +48,6 @@
     {
       "type": "object",
       "properties": {
-        "type": {
-          "type": "string",
-          "const": "sweep_plant"
-        },
         "crop_id": {
           "type": "string"
         },
@@ -60,6 +56,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "type": {
+          "type": "string",
+          "const": "sweep_plant"
         }
       },
       "required": [
@@ -71,12 +71,12 @@
     {
       "type": "object",
       "properties": {
+        "plot_id": {
+          "type": "string"
+        },
         "type": {
           "type": "string",
           "const": "harvest_crop"
-        },
-        "plot_id": {
-          "type": "string"
         }
       },
       "required": [
@@ -87,10 +87,6 @@
     {
       "type": "object",
       "properties": {
-        "type": {
-          "type": "string",
-          "const": "sweep_harvest"
-        },
         "harvest_mode": {
           "anyOf": [
             {
@@ -107,6 +103,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "type": {
+          "type": "string",
+          "const": "sweep_harvest"
         }
       },
       "required": [
@@ -117,15 +117,15 @@
     {
       "type": "object",
       "properties": {
-        "type": {
-          "type": "string",
-          "const": "buy_structure"
-        },
         "structure_kind": {
           "$ref": "#/$defs/StructureKind"
         },
         "tile": {
           "$ref": "#/$defs/Tile"
+        },
+        "type": {
+          "type": "string",
+          "const": "buy_structure"
         }
       },
       "required": [
@@ -153,12 +153,12 @@
     {
       "type": "object",
       "properties": {
+        "storage_kind": {
+          "$ref": "#/$defs/StorageKind"
+        },
         "type": {
           "type": "string",
           "const": "upgrade_storage"
-        },
-        "storage_kind": {
-          "$ref": "#/$defs/StorageKind"
         }
       },
       "required": [
@@ -169,12 +169,12 @@
     {
       "type": "object",
       "properties": {
+        "tile": {
+          "$ref": "#/$defs/Tile"
+        },
         "type": {
           "type": "string",
           "const": "buy_field_plot"
-        },
-        "tile": {
-          "$ref": "#/$defs/Tile"
         }
       },
       "required": [
@@ -185,15 +185,15 @@
     {
       "type": "object",
       "properties": {
-        "type": {
-          "type": "string",
-          "const": "move_structure"
-        },
         "target": {
           "$ref": "#/$defs/StructureTarget"
         },
         "tile": {
           "$ref": "#/$defs/Tile"
+        },
+        "type": {
+          "type": "string",
+          "const": "move_structure"
         }
       },
       "required": [
@@ -205,15 +205,15 @@
     {
       "type": "object",
       "properties": {
-        "type": {
-          "type": "string",
-          "const": "queue_recipe"
-        },
         "machine_id": {
           "type": "string"
         },
         "recipe_id": {
           "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "const": "queue_recipe"
         }
       },
       "required": [
@@ -225,12 +225,12 @@
     {
       "type": "object",
       "properties": {
+        "recipe_id": {
+          "type": "string"
+        },
         "type": {
           "type": "string",
           "const": "queue_oven_recipe"
-        },
-        "recipe_id": {
-          "type": "string"
         }
       },
       "required": [
@@ -241,12 +241,12 @@
     {
       "type": "object",
       "properties": {
+        "machine_id": {
+          "type": "string"
+        },
         "type": {
           "type": "string",
           "const": "collect_machine_job"
-        },
-        "machine_id": {
-          "type": "string"
         }
       },
       "required": [
@@ -269,15 +269,15 @@
     {
       "type": "object",
       "properties": {
+        "animal_slot": {
+          "type": "string"
+        },
+        "shelter_id": {
+          "type": "string"
+        },
         "type": {
           "type": "string",
           "const": "feed_animal"
-        },
-        "animal_slot": {
-          "type": "string"
-        },
-        "shelter_id": {
-          "type": "string"
         }
       },
       "required": [
@@ -289,15 +289,15 @@
     {
       "type": "object",
       "properties": {
+        "animal_slot": {
+          "type": "string"
+        },
+        "shelter_id": {
+          "type": "string"
+        },
         "type": {
           "type": "string",
           "const": "collect_animal_product"
-        },
-        "animal_slot": {
-          "type": "string"
-        },
-        "shelter_id": {
-          "type": "string"
         }
       },
       "required": [
@@ -309,12 +309,12 @@
     {
       "type": "object",
       "properties": {
+        "order_id": {
+          "type": "string"
+        },
         "type": {
           "type": "string",
           "const": "fulfill_delivery_order"
-        },
-        "order_id": {
-          "type": "string"
         }
       },
       "required": [
@@ -325,12 +325,12 @@
     {
       "type": "object",
       "properties": {
+        "order_id": {
+          "type": "string"
+        },
         "type": {
           "type": "string",
           "const": "discard_delivery_order"
-        },
-        "order_id": {
-          "type": "string"
         }
       },
       "required": [
@@ -341,10 +341,6 @@
     {
       "type": "object",
       "properties": {
-        "type": {
-          "type": "string",
-          "const": "discard_inventory"
-        },
         "item_id": {
           "type": "string"
         },
@@ -352,6 +348,10 @@
           "type": "integer",
           "format": "uint32",
           "minimum": 0
+        },
+        "type": {
+          "type": "string",
+          "const": "discard_inventory"
         }
       },
       "required": [
@@ -363,12 +363,12 @@
     {
       "type": "object",
       "properties": {
+        "resident_id": {
+          "type": "string"
+        },
         "type": {
           "type": "string",
           "const": "select_resident"
-        },
-        "resident_id": {
-          "type": "string"
         }
       },
       "required": [
@@ -379,15 +379,15 @@
     {
       "type": "object",
       "properties": {
-        "type": {
-          "type": "string",
-          "const": "cancel_resident_task"
-        },
         "resident_id": {
           "type": "string"
         },
         "task_id": {
           "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "const": "cancel_resident_task"
         }
       },
       "required": [
@@ -399,10 +399,6 @@
     {
       "type": "object",
       "properties": {
-        "type": {
-          "type": "string",
-          "const": "reorder_resident_task"
-        },
         "before_task_id": {
           "type": [
             "string",
@@ -415,6 +411,10 @@
         },
         "task_id": {
           "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "const": "reorder_resident_task"
         }
       },
       "required": [
@@ -426,15 +426,15 @@
     {
       "type": "object",
       "properties": {
-        "type": {
-          "type": "string",
-          "const": "rename_resident"
-        },
         "display_name": {
           "type": "string"
         },
         "resident_id": {
           "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "const": "rename_resident"
         }
       },
       "required": [
@@ -446,17 +446,17 @@
     {
       "type": "object",
       "properties": {
+        "item_id": {
+          "type": "string"
+        },
+        "quantity": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
         "type": {
           "type": "string",
           "const": "buy_market_item"
-        },
-        "item_id": {
-          "type": "string"
-        },
-        "quantity": {
-          "type": "integer",
-          "format": "uint32",
-          "minimum": 0
         }
       },
       "required": [
@@ -468,17 +468,17 @@
     {
       "type": "object",
       "properties": {
+        "item_id": {
+          "type": "string"
+        },
+        "quantity": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
         "type": {
           "type": "string",
           "const": "sell_market_item"
-        },
-        "item_id": {
-          "type": "string"
-        },
-        "quantity": {
-          "type": "integer",
-          "format": "uint32",
-          "minimum": 0
         }
       },
       "required": [
@@ -490,17 +490,17 @@
     {
       "type": "object",
       "properties": {
+        "item_id": {
+          "type": "string"
+        },
+        "quantity": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
         "type": {
           "type": "string",
           "const": "stock_farm_shop"
-        },
-        "item_id": {
-          "type": "string"
-        },
-        "quantity": {
-          "type": "integer",
-          "format": "uint32",
-          "minimum": 0
         }
       },
       "required": [
@@ -512,17 +512,17 @@
     {
       "type": "object",
       "properties": {
+        "item_id": {
+          "type": "string"
+        },
+        "quantity": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
         "type": {
           "type": "string",
           "const": "unstock_farm_shop"
-        },
-        "item_id": {
-          "type": "string"
-        },
-        "quantity": {
-          "type": "integer",
-          "format": "uint32",
-          "minimum": 0
         }
       },
       "required": [
@@ -534,10 +534,6 @@
     {
       "type": "object",
       "properties": {
-        "type": {
-          "type": "string",
-          "const": "set_farm_shop_price"
-        },
         "item_id": {
           "type": "string"
         },
@@ -545,6 +541,10 @@
           "type": "integer",
           "format": "uint32",
           "minimum": 0
+        },
+        "type": {
+          "type": "string",
+          "const": "set_farm_shop_price"
         }
       },
       "required": [
@@ -556,10 +556,6 @@
     {
       "type": "object",
       "properties": {
-        "type": {
-          "type": "string",
-          "const": "place_decoration"
-        },
         "decoration_id": {
           "type": "string"
         },
@@ -568,6 +564,10 @@
         },
         "tile": {
           "$ref": "#/$defs/RoomTile"
+        },
+        "type": {
+          "type": "string",
+          "const": "place_decoration"
         }
       },
       "required": [
@@ -580,10 +580,6 @@
     {
       "type": "object",
       "properties": {
-        "type": {
-          "type": "string",
-          "const": "move_decoration"
-        },
         "placement_id": {
           "type": "string"
         },
@@ -592,6 +588,10 @@
         },
         "tile": {
           "$ref": "#/$defs/RoomTile"
+        },
+        "type": {
+          "type": "string",
+          "const": "move_decoration"
         }
       },
       "required": [
@@ -604,15 +604,15 @@
     {
       "type": "object",
       "properties": {
-        "type": {
-          "type": "string",
-          "const": "remove_decoration"
-        },
         "placement_id": {
           "type": "string"
         },
         "room_id": {
           "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "const": "remove_decoration"
         }
       },
       "required": [
@@ -661,10 +661,6 @@
         {
           "type": "object",
           "properties": {
-            "type": {
-              "type": "string",
-              "const": "producer_output"
-            },
             "chain_id": {
               "type": [
                 "string",
@@ -673,6 +669,10 @@
             },
             "job_id": {
               "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "producer_output"
             }
           },
           "required": [
@@ -683,15 +683,15 @@
         {
           "type": "object",
           "properties": {
-            "type": {
-              "type": "string",
-              "const": "committed_task_output"
-            },
             "resident_id": {
               "type": "string"
             },
             "task_id": {
               "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "committed_task_output"
             }
           },
           "required": [
@@ -740,15 +740,15 @@
         {
           "type": "object",
           "properties": {
-            "type": {
-              "type": "string",
-              "const": "plant_crop"
-            },
             "crop_id": {
               "type": "string"
             },
             "plot_id": {
               "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "plant_crop"
             }
           },
           "required": [
@@ -760,12 +760,12 @@
         {
           "type": "object",
           "properties": {
+            "plot_id": {
+              "type": "string"
+            },
             "type": {
               "type": "string",
               "const": "harvest_crop"
-            },
-            "plot_id": {
-              "type": "string"
             }
           },
           "required": [
@@ -776,12 +776,12 @@
         {
           "type": "object",
           "properties": {
+            "recipe_id": {
+              "type": "string"
+            },
             "type": {
               "type": "string",
               "const": "start_oven_recipe"
-            },
-            "recipe_id": {
-              "type": "string"
             }
           },
           "required": [
@@ -792,12 +792,12 @@
         {
           "type": "object",
           "properties": {
+            "producer_id": {
+              "type": "string"
+            },
             "type": {
               "type": "string",
               "const": "collect_oven_job"
-            },
-            "producer_id": {
-              "type": "string"
             }
           },
           "required": [
@@ -881,12 +881,12 @@
         {
           "type": "object",
           "properties": {
+            "id": {
+              "type": "string"
+            },
             "type": {
               "type": "string",
               "const": "machine"
-            },
-            "id": {
-              "type": "string"
             }
           },
           "required": [
@@ -897,12 +897,12 @@
         {
           "type": "object",
           "properties": {
+            "id": {
+              "type": "string"
+            },
             "type": {
               "type": "string",
               "const": "shelter"
-            },
-            "id": {
-              "type": "string"
             }
           },
           "required": [
@@ -925,12 +925,12 @@
         {
           "type": "object",
           "properties": {
+            "id": {
+              "type": "string"
+            },
             "type": {
               "type": "string",
               "const": "tool_shed"
-            },
-            "id": {
-              "type": "string"
             }
           },
           "required": [
@@ -941,12 +941,12 @@
         {
           "type": "object",
           "properties": {
+            "id": {
+              "type": "string"
+            },
             "type": {
               "type": "string",
               "const": "farm_shop"
-            },
-            "id": {
-              "type": "string"
             }
           },
           "required": [
