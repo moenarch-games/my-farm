@@ -113,6 +113,10 @@ test("published asset-tooling Crops and soil are actual pinned web resources", a
     expect(bytes.length, name).toBe(metadata.byteLength);
     if (name.endsWith(".glb")) {
       expect(bytes.subarray(0, 4).toString("ascii"), name).toBe("glTF");
+    } else if (name.endsWith(".wav")) {
+      expect(bytes.subarray(0, 4).toString("ascii"), name).toBe("RIFF");
+    } else if (name.endsWith(".json")) {
+      expect(JSON.parse(bytes.toString("utf8")).schemaVersion, name).toBe(1);
     } else {
       expect(bytes.subarray(0, 8).toString("hex"), name).toBe("89504e470d0a1a0a");
     }
