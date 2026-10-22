@@ -2,7 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests",
-  testIgnore: ["pages-demo.spec.ts", "zz-pages-demo-scenarios.spec.ts", "wheat-art.spec.ts", "onboarding.spec.ts", "tool-sharing.spec.ts", "first-minute-harvest.spec.ts"],
+  testIgnore: ["pages-demo.spec.ts", "zz-pages-demo-scenarios.spec.ts", "crop-art.spec.ts", "onboarding.spec.ts", "tool-sharing.spec.ts", "first-minute-harvest.spec.ts"],
   webServer: [
     {
       command:
