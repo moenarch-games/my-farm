@@ -554,7 +554,10 @@ function farmViewWithTask(task: ResidentTask | null): FarmView {
         kind: task.kind,
         label: currentStep ? taskLabelForStep(currentStep) : "Field work",
         step_count: task.steps.length,
-        steps: task.steps.map(stepView),
+        steps: task.steps.map((step, index) => {
+          const startsAt = task.started_at_ms + task.steps.slice(0, index).reduce((sum, prior) => sum + prior.duration_ms, 0);
+          return stepView(step, startsAt, startsAt + step.duration_ms);
+        }),
         preview: {
           path: task.steps.flatMap((step) => step.walk_path),
           target,
@@ -603,18 +606,7 @@ function farmViewWithTask(task: ResidentTask | null): FarmView {
         state: task ? "working" : "idle",
         current_task: summary,
         queue: summary ? [summary] : [],
-        current_step: currentStep
-          ? {
-              label: taskLabelForStep(currentStep),
-              ...visualCueForStep(currentStep),
-              target,
-              ...stepQuantityAndKind(currentStep),
-              requires_resident: currentStep.work.type !== "autonomous_wait",
-              walk_duration_ms: currentStep.walk_duration_ms,
-              work_duration_ms: currentStep.work_duration_ms,
-              duration_ms: currentStep.duration_ms,
-            }
-          : undefined,
+        current_step: summary?.steps[0],
         target,
         scene: {
           tile: currentStep?.approach_tile ?? target?.tile ?? residentLocations.woman,
@@ -662,13 +654,21 @@ function targetViewForStep(step: ResidentTask["steps"][number]) {
   return { kind: "work" as const, label: "Work target", tile };
 }
 
-function stepView(step: ResidentTask["steps"][number]) {
+function stepView(step: ResidentTask["steps"][number], startsAtMs: number, endsAtMs: number) {
   return {
     label: taskLabelForStep(step),
     ...visualCueForStep(step),
     target: targetViewForStep(step),
     ...stepQuantityAndKind(step),
     requires_resident: step.work.type !== "autonomous_wait",
+    phase:
+      step.work.type === "autonomous_wait"
+        ? ("autonomous_wait" as const)
+        : step.work.type === "plant_crop" || step.work.type === "start_oven_recipe" || step.work.type === "feed_animal"
+          ? ("active_work" as const)
+          : ("collection_deposit" as const),
+    starts_at_ms: startsAtMs,
+    ends_at_ms: endsAtMs,
     walk_duration_ms: step.walk_duration_ms,
     work_duration_ms: step.work_duration_ms,
     duration_ms: step.duration_ms,
