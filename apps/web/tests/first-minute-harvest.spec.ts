@@ -119,7 +119,7 @@ test.describe("desktop", () => {
     const after = await savedFarm(page);
     expect(queueLength(after, otherId)).toBe(0);
     expect(queueLength(after, defaultId)).toBe(0);
-    await expect(page.getByLabel(`Field Plot ${ripePlotId}`, { exact: true })).toHaveAttribute("data-wheat-appearance", "ready");
+    await expect(page.getByLabel(`Field Plot ${ripePlotId}`, { exact: true })).toHaveAttribute("data-crop-appearance", "wheat-ready");
     expect(await siloUsed(page)).toBe(startSilo);
     await expect(page.getByRole("region", { name: "Farm guidance" })).not.toContainText("Harvest deposited");
   });
@@ -134,7 +134,7 @@ test.describe("desktop", () => {
     // Non-ready (empty) Field Plot: no Task, no stock, no completion claim.
     await residentsRegion.getByRole("button", { name: new RegExp(`^${otherName}\\b`) }).click();
     await desktopHarvest(page).click();
-    const empty = page.locator('[aria-label^="Field Plot "][data-wheat-appearance="none"]').first();
+    const empty = page.locator('[aria-label^="Field Plot "][data-crop-appearance="none"]').first();
     await empty.click();
     await page.clock.fastForward(5_000);
     expect(queueLength(await savedFarm(page), otherId)).toBe(0);
@@ -307,7 +307,7 @@ for (const input of ["pointer", "keyboard"] as const) {
       body: JSON.stringify({
         input, beforeDwell, wallNow, authoritativeReadyAt: ripe!.crop!.ready_at_ms,
         savedLastUpdate: fresh.last_update_ms,
-        renderedAppearance: await field.getAttribute("data-wheat-appearance"),
+        renderedAppearance: await field.getAttribute("data-crop-appearance"),
         selectedResident: (await savedFarm(page)).selected_resident_id,
         chosenQueueLength: queueLength(await savedFarm(page), otherId),
       }),
@@ -392,7 +392,7 @@ test.describe("phone touch", () => {
     const after = await savedFarm(page);
     expect(queueLength(after, otherId)).toBe(0);
     expect(queueLength(after, defaultId)).toBe(0);
-    await expect(page.getByLabel(`Field Plot ${ripePlotId}`, { exact: true })).toHaveAttribute("data-wheat-appearance", "ready");
+    await expect(page.getByLabel(`Field Plot ${ripePlotId}`, { exact: true })).toHaveAttribute("data-crop-appearance", "wheat-ready");
   });
 });
 
@@ -404,7 +404,7 @@ async function newFarm(page: Page) {
 }
 
 function ripeWheatField(page: Page): Locator {
-  return page.locator('[aria-label^="Field Plot "][data-wheat-appearance="ready"]');
+  return page.locator('[aria-label^="Field Plot "][data-crop-appearance="wheat-ready"]');
 }
 
 function desktopHarvest(page: Page): Locator {
