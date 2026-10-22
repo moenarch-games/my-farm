@@ -7,8 +7,9 @@ const root = fileURLToPath(new URL("../", import.meta.url));
 const require = createRequire(import.meta.url);
 const cli = require.resolve("@playwright/test/cli");
 const titles = [
-  "published asset-tooling Wheat and soil are actual pinned web resources",
+  "published asset-tooling Crops and soil are actual pinned web resources",
   "Wheat appearance follows planted Crop state through progress, harvest and reload",
+  "Corn appearance follows planted Crop state through progress, harvest and reload",
 ];
 
 type DiscoveredTest = {
@@ -37,7 +38,7 @@ const pages = discover("apps/web/playwright.pages-demo.config.ts");
 for (const title of titles) {
   const matches = pages.filter((spec) => spec.title === title);
   assert.equal(matches.length, 1, `Pages must discover exactly one ${title}`);
-  assert.equal(matches[0].file, "wheat-art.spec.ts");
+  assert.equal(matches[0].file, "crop-art.spec.ts");
   assert.ok(matches[0].tests.length > 0);
   for (const test of matches[0].tests) {
     assert.equal(test.expectedStatus, "passed", `${title}: required behavioral coverage cannot be skipped`);
@@ -45,11 +46,11 @@ for (const title of titles) {
   }
 }
 const server = discover("apps/web/playwright.config.ts");
-assert.equal(server.filter((spec) => spec.file === "wheat-art.spec.ts").length, 0,
-  "Browser-local WASM Wheat fixtures must not be dispatched to the server runtime");
+assert.equal(server.filter((spec) => spec.file === "crop-art.spec.ts").length, 0,
+  "Browser-local WASM Crop fixtures must not be dispatched to the server runtime");
 const shell = server.filter((spec) => spec.title === "renders the playable farm shell");
 const shellTests = shell.flatMap((spec) => spec.tests);
 assert.deepEqual(shellTests.map((test) => test.projectName).sort(), ["desktop", "mobile"]);
 assert.ok(shellTests.every((test) => test.expectedStatus === "passed"
   && !test.annotations.some((annotation) => ["skip", "fixme"].includes(annotation.type))));
-console.log("Actual Playwright discovery preserves mandatory Pages Wheat and desktop/phone server shell coverage.");
+console.log("Actual Playwright discovery preserves mandatory Pages Crop art and desktop/phone server shell coverage.");

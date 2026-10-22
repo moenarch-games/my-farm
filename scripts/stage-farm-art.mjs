@@ -7,24 +7,24 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const config = JSON.parse(await readFile(path.join(root, "scripts/farm-art-source.json"), "utf8"));
 const upstream = path.resolve(process.argv[2] ?? path.join(root, ".artifacts/asset-tooling-source"));
-const packageDir = path.join(upstream, ".artifacts/wheat/package");
-const manifest = JSON.parse(await readFile(path.join(packageDir, "manifest.json"), "utf8"));
-assert.equal(manifest.profile, config.profile);
-assert.equal(manifest.schemaVersion, 1);
-
 const selected = [];
-for (const stage of config.wheatStages) {
-  for (const [kind, extension] of [["mesh", "glb"], ["icon", "png"]]) {
-    const entry = manifest.assets.find((asset) => asset.key === `wheat.${kind}` && asset.variant === stage);
-    assert.ok(entry, `Missing packaged Wheat ${kind} variant ${stage}`);
-    const relative = entry.path;
-    assert.match(relative, /^assets\/[0-9a-f]{64}\.(glb|png)$/);
-    const bytes = await readFile(path.join(packageDir, relative));
-    assert.equal(bytes.length, entry.source.byteLength, relative);
-    assert.equal(createHash("sha256").update(bytes).digest("hex"), entry.source.sha256, relative);
-    assert.equal(relative.split(".").at(-1), extension);
-    const name = `wheat-${stage}.${extension}`;
-    selected.push({ name, bytes, source: entry.source });
+for (const [crop, stages] of Object.entries(config.crops)) {
+  const packageDir = path.join(upstream, `.artifacts/${crop}/package`);
+  const manifest = JSON.parse(await readFile(path.join(packageDir, "manifest.json"), "utf8"));
+  assert.equal(manifest.profile, config.profile);
+  assert.equal(manifest.schemaVersion, 1);
+  for (const stage of stages) {
+    for (const [kind, extension] of [["mesh", "glb"], ["icon", "png"]]) {
+      const entry = manifest.assets.find((asset) => asset.key === `${crop}.${kind}` && asset.variant === stage);
+      assert.ok(entry, `Missing packaged ${crop} ${kind} variant ${stage}`);
+      const relative = entry.path;
+      assert.match(relative, /^assets\/[0-9a-f]{64}\.(glb|png)$/);
+      const bytes = await readFile(path.join(packageDir, relative));
+      assert.equal(bytes.length, entry.source.byteLength, relative);
+      assert.equal(createHash("sha256").update(bytes).digest("hex"), entry.source.sha256, relative);
+      assert.equal(relative.split(".").at(-1), extension);
+      selected.push({ name: `${crop}-${stage}.${extension}`, bytes, source: entry.source });
+    }
   }
 }
 for (const channel of ["color", "normal", "roughness"]) {

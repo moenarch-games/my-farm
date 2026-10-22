@@ -8,12 +8,12 @@ Test rules: the spec drives user-visible controls only. It **reads** the real WA
 
 | #231 obligation | Acceptance case (`apps/web/tests/first-minute-harvest.spec.ts`) |
 |---|---|
-| A new Farm opens with an already-ripe Wheat Field Plot, with no planting or waiting, in real Farm state | `desktop › new Farm opens with a ripe Wheat Field Plot…`: a Field Plot target with `data-wheat-appearance="ready"` is visible and unobscured right after **New Farm**. The saved `field_plots[id].crop` is `wheat` with `ready_at_ms <= last_update_ms`. All queues are empty. |
+| A new Farm opens with an already-ripe Wheat Field Plot, with no planting or waiting, in real Farm state | `desktop › new Farm opens with a ripe Wheat Field Plot…`: a Field Plot target with `data-crop-appearance="wheat-ready"` is visible and unobscured right after **New Farm**. The saved `field_plots[id].crop` is `wheat` with `ready_at_ms <= last_update_ms`. All queues are empty. |
 | Two selectable Residents | Same test: exactly two scene `button`s named `<Name> Farm Resident`. The default comes from the saved `selected_resident_id`. |
 | The first objective is Resident → Harvest → Field; no modal tutorial | Same test: the `Farm guidance` region matches `/Resident … Harvest … (Field Plot\|field\|Wheat)/i`, does not mention Seed or plant, and no `dialog` is open. |
 | Desktop: the non-default Resident gets the real Task; it walks, harvests, carries and deposits; success only after the deposit | `desktop › the chosen non-default Resident…`: only the chosen Resident's queue becomes 1, the default stays 0, and guidance names the chosen Resident. The scene marker shows `harvesting`, then transport toward the Silo, while Silo stock is unchanged and there is no "Harvest deposited". After the deposit, Silo stock rises by exactly 2 (catalog Wheat yield), guidance shows "Harvest deposited", and no ripe field remains. The saved `resident_last_harvest_deposit[chosen]` is Wheat, the default Resident has no receipt, and Silo Wheat rises by +2. |
 | Cancelling target picking queues nothing | `desktop › cancelling…` (Escape) and `phone touch › phone cancel…` (**Select** action): Harvest is no longer pressed. Clicking or tapping the ripe field and then 30 s of simulated time give no queue, the field stays ripe and stock is unchanged. |
-| Non-ready target is rejected without fake completion | `desktop › non-ready and already-assigned…`: Harvest on an empty plot (`data-wheat-appearance="none"`) queues nothing. |
+| Non-ready target is rejected without fake completion | `desktop › non-ready and already-assigned…`: Harvest on an empty plot (`data-crop-appearance="none"`) queues nothing. |
 | An occupied target is rejected without fake completion | Same test: the default Resident trying to harvest the field already assigned to the chosen Resident queues nothing. There is exactly one +2 deposit, and the receipt belongs only to the original Resident. |
 | Reload during work keeps status, with no duplicate stock or completion | `desktop › reload during the harvest…`: reload while the Resident is non-idle, then **Start Farm**. The Resident is still non-idle, Silo is unchanged, and there is no "Harvest deposited". After completion Silo is +2 once. A second reload plus 120 s leaves inventory and receipts equal. |
 | Keyboard path | `desktop › keyboard-only…`: Tab and Enter only reach the Resident selector, the Harvest tool and the ripe Field Plot target, and the chosen Resident gets the Task. |
@@ -29,7 +29,7 @@ Existing seams this contract reuses (keep them stable):
 - Scene Resident markers: `button` named `<Name> Farm Resident`, `data-testid="farm-scene-resident-<id>"`, with `data-resident-state` (`idle|walking|working|blocked`), `data-resident-activity` (`harvesting`, `depositing_inventory`, …) and `data-resident-target` (contains `Silo` while carrying to the Silo).
 - Desktop: region `Farm Residents` with buttons whose names start with the Resident name and that carry `aria-pressed` for the work selection. `toolbar` `Interaction Tools` → button `Harvest` (exact) with `aria-pressed`. Escape cancels target picking.
 - Phone (≤760 px): `navigation` `Farm actions` with buttons `Harvest` and `Select` that carry `aria-pressed`. Tapping a scene Resident marker selects that Resident for work.
-- Field Plot targets: element labelled `Field Plot <plot-id>` with `data-wheat-appearance` (`ready` for ripe Wheat, `none` for empty).
+- Field Plot targets: element labelled `Field Plot <plot-id>` with `data-crop-appearance` (`wheat-ready` for ripe Wheat, `none` for empty).
 - `data-testid="storage-summary-chip"` with `aria-label` containing `Silo <used> of <capacity>`.
 
 New or changed requirements:

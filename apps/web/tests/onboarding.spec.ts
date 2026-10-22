@@ -25,7 +25,7 @@ test("fresh guidance keeps gameplay usable and follows completed planting and de
   await expect.poll(async () => (await savedFarm(page)).resident_task_queues.man?.length ?? 0).toBeGreaterThan(0);
   await expect(guidance).not.toContainText(/Harvest deposited|Bread collected/);
   await page.clock.fastForward(60_000);
-  await expect(page.getByLabel("Field Plot plot-1", { exact: true })).toHaveAttribute("data-wheat-appearance", "ready");
+  await expect(page.getByLabel("Field Plot plot-1", { exact: true })).toHaveAttribute("data-crop-appearance", "wheat-ready");
 
   await page.locator(".interaction-tools").getByRole("button", { name: "Harvest", exact: true }).click();
   await page.getByLabel("Field Plot plot-1", { exact: true }).click();
@@ -51,7 +51,7 @@ test("actual Silo deposit remains recognized when another Resident consumes the 
   await page.getByLabel("Field Plot plot-1", { exact: true }).click();
   await expect.poll(async () => (await savedFarm(page)).resident_task_queues.man?.length ?? 0).toBeGreaterThan(0);
   await page.clock.fastForward(60_000);
-  await expect(page.getByLabel("Field Plot plot-1", { exact: true })).toHaveAttribute("data-wheat-appearance", "ready");
+  await expect(page.getByLabel("Field Plot plot-1", { exact: true })).toHaveAttribute("data-crop-appearance", "wheat-ready");
   await expect(page.getByTestId("storage-summary-chip")).toHaveAttribute("aria-label", /Silo 8 of 40/);
   await page.locator(".interaction-tools").getByRole("button", { name: "Harvest", exact: true }).click();
   await page.getByLabel("Field Plot plot-1", { exact: true }).click();
@@ -88,7 +88,7 @@ test("direct carried-crop reuse does not count as a Silo deposit", async ({ page
   await page.getByLabel("Field Plot plot-1", { exact: true }).click();
   await expect.poll(async () => (await savedFarm(page)).resident_task_queues.man?.length ?? 0).toBeGreaterThan(0);
   await page.clock.fastForward(60_000);
-  await expect(page.getByLabel("Field Plot plot-1", { exact: true })).toHaveAttribute("data-wheat-appearance", "ready");
+  await expect(page.getByLabel("Field Plot plot-1", { exact: true })).toHaveAttribute("data-crop-appearance", "wheat-ready");
   await expect(page.getByTestId("storage-summary-chip")).toHaveAttribute("aria-label", /Silo 8 of 40/);
   await page.locator(".interaction-tools").getByRole("button", { name: "Harvest", exact: true }).click();
   await page.getByLabel("Field Plot plot-1", { exact: true }).click();

@@ -19,7 +19,7 @@ import {
   type StructureSelection,
 } from "@my-farm/game-model/selectors";
 import { FarmArrivalEnvironment, FarmAsset, type FarmAssetKind } from "./farmScene/assets";
-import { wheatAppearanceForCrop } from "@my-farm/game-model";
+import { cropAppearanceForCrop, cropAppearanceLabel } from "@my-farm/game-model";
 import { FarmResidentFigure, type FarmResidentPresentation } from "./farmScene/residents";
 import {
   computeFarmCameraFrame,
@@ -968,7 +968,7 @@ function FieldMesh({
   onCancelFieldToolAction: () => void;
 }) {
   const cropReady = plot.crop ? nowMs >= plot.crop.ready_at_ms : false;
-  const wheatAppearance = wheatAppearanceForCrop(plot.crop, nowMs);
+  const cropAppearance = cropAppearanceForCrop(plot.crop, nowMs);
   const longPressTimer = useRef<number | null>(null);
   const longPressStart = useRef<{ x: number; y: number } | null>(null);
   const ignoreNextClick = useRef(false);
@@ -1322,9 +1322,9 @@ function FieldMesh({
             movingTarget: sweptByHarvest || sweptByPlant,
             cropItemId: plot.crop?.item_id,
             cropReady,
-            wheatAppearance,
-            wheatWindPhase: plot.tile.x * 0.47 + plot.tile.y * 0.73,
-            wheatAnimationPaused: visualClockPaused,
+            cropAppearance,
+            cropWindPhase: plot.tile.x * 0.47 + plot.tile.y * 0.73,
+            cropAnimationPaused: visualClockPaused,
           }}
         />
         <mesh position={[0, 0.24, 0]} rotation={[-Math.PI / 2, 0, 0]}>
@@ -1347,7 +1347,7 @@ function FieldMesh({
           // Reachable by keyboard while a field tool picks its target.
           tabIndex={fieldToolActive ? 0 : -1}
           aria-label={`Field Plot ${plot.id}`}
-          data-wheat-appearance={wheatAppearance ?? "none"}
+          data-crop-appearance={cropAppearanceLabel(cropAppearance)}
           onClick={selectFromDom}
           onContextMenu={openDomMenu}
           onPointerDown={startDomPointer}
