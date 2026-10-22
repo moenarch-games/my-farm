@@ -89,7 +89,9 @@ export type ToolSourceRef = { "type": "farmhouse" } | { "type": "tool_shed", id:
 
 export type ResidentTaskKind = { "type": "field_work" } | { "type": "production_work" } | { "type": "shop_work" };
 
-export type ResidentTaskStepWork = { "type": "pickup_items", source: StorageSourceRef, items: Array<ItemStack>, } | { "type": "pickup_tools", source: ToolSourceRef, tools: Array<ToolStack>, } | { "type": "plant_crop", crop_id: string, } | { "type": "harvest_crop", crop_id: string, quantity: number, } | { "type": "collect_machine_job", job_id: string, recipe_id: string, } | { "type": "start_oven_recipe", job_id: string, recipe_id: string, } | { "type": "collect_oven_job", job_id: string, recipe_id: string, } | { "type": "feed_animal" } | { "type": "collect_animal_product", item_id: string, quantity: number, } | { "type": "deposit_inventory", item_id: string, quantity: number, } | { "type": "deposit_items", destination: StorageSourceRef, items: Array<ItemStack>, } | { "type": "deposit_shop_stock", items: Array<ItemStack>, } | { "type": "pickup_shop_stock", items: Array<ItemStack>, } | { "type": "return_tools", source: ToolSourceRef, tools: Array<ToolStack>, };
+export type AutonomousPhase = { "type": "crop_growth", crop_id: string, } | { "type": "oven_bake", job_id: string, recipe_id: string, };
+
+export type ResidentTaskStepWork = { "type": "pickup_items", source: StorageSourceRef, items: Array<ItemStack>, } | { "type": "pickup_tools", source: ToolSourceRef, tools: Array<ToolStack>, } | { "type": "plant_crop", crop_id: string, } | { "type": "harvest_crop", crop_id: string, quantity: number, } | { "type": "collect_machine_job", job_id: string, recipe_id: string, } | { "type": "start_oven_recipe", job_id: string, recipe_id: string, } | { "type": "collect_oven_job", job_id: string, recipe_id: string, } | { "type": "feed_animal" } | { "type": "collect_animal_product", item_id: string, quantity: number, } | { "type": "deposit_inventory", item_id: string, quantity: number, } | { "type": "deposit_items", destination: StorageSourceRef, items: Array<ItemStack>, } | { "type": "deposit_shop_stock", items: Array<ItemStack>, } | { "type": "pickup_shop_stock", items: Array<ItemStack>, } | { "type": "return_tools", source: ToolSourceRef, tools: Array<ToolStack>, } | { "type": "autonomous_wait", phase: AutonomousPhase, };
 
 export type ResidentTaskStep = { reserved_work_target: ReservedWorkTarget, work: ResidentTaskStepWork, approach_tile?: Tile, walk_path: Array<Tile>, walk_duration_ms: number, work_duration_ms: number, duration_ms: number, };
 
@@ -111,11 +113,11 @@ export type HarvestDepositReceipt = { task_id: string, crop_id: string, complete
 
 export type ResidentScenePoint = { x: number, y: number, };
 
-export type ResidentWorkState = "idle" | "walking" | "working" | "blocked";
+export type ResidentWorkState = "idle" | "walking" | "working" | "waiting" | "blocked";
 
 export type ResidentPathState = "walking" | "working";
 
-export type ResidentVisualActivity = "idle" | "walking" | "picking_up_items" | "picking_up_tools" | "planting" | "harvesting" | "collecting_machine" | "starting_oven" | "collecting_oven" | "feeding_animal" | "collecting_animal_product" | "depositing_inventory" | "returning_tools";
+export type ResidentVisualActivity = "idle" | "walking" | "picking_up_items" | "picking_up_tools" | "planting" | "harvesting" | "collecting_machine" | "starting_oven" | "collecting_oven" | "feeding_animal" | "collecting_animal_product" | "depositing_inventory" | "returning_tools" | "waiting";
 
 export type ResidentVisualProp = "none" | "seed_pouch" | "basket" | "bucket" | "crate" | "oven_tray" | "tool_bundle";
 
@@ -125,9 +127,13 @@ export type ResidentTargetView = { kind: ResidentTargetKind, id?: string, label:
 
 export type ResidentSceneView = { tile: ResidentScenePoint, path: Array<ResidentScenePoint>, path_state?: ResidentPathState, inside_house: boolean, };
 
-export type ResidentStepView = { label: string, activity: ResidentVisualActivity, prop: ResidentVisualProp, target?: ResidentTargetView, quantity: number, kind: ItemKind, walk_duration_ms: number, work_duration_ms: number, duration_ms: number, };
+export type ResidentStepView = { label: string, activity: ResidentVisualActivity, prop: ResidentVisualProp, target?: ResidentTargetView, quantity: number, kind: ItemKind, 
+/**
+ * False for an autonomous-wait Step, which runs without its Resident.
+ */
+requires_resident: boolean, walk_duration_ms: number, work_duration_ms: number, duration_ms: number, };
 
-export type ResidentTaskQueueState = "current" | "queued" | "blocked";
+export type ResidentTaskQueueState = "current" | "waiting" | "queued" | "blocked";
 
 export type ResidentTaskPreviewView = { path: Array<ResidentScenePoint>, target?: ResidentTargetView, };
 

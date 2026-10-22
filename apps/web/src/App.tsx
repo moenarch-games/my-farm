@@ -3164,13 +3164,18 @@ function ResidentTaskQueueRow({
         </summary>
         <ol className="resident-queue-steps">
           {task.steps.map((step, index) => (
-            <li key={`${task.id}-${index}`}>
+            <li
+              key={`${task.id}-${index}`}
+              className={step.requires_resident ? undefined : "resident-queue-step--autonomous"}
+            >
               <div>
                 <strong>{residentTaskStepLabel(catalog, step)}</strong>
                 <small>{step.target?.label ?? "Work target"}</small>
               </div>
               <span>
-                {formatStepTiming(step)} - {formatStepQuantity(step)}
+                {step.requires_resident
+                  ? `${formatStepTiming(step)} - ${formatStepQuantity(step)}`
+                  : `Resident free ${formatDuration(step.duration_ms)}`}
               </span>
             </li>
           ))}
@@ -3208,6 +3213,9 @@ function queueStateLabel(task: ResidentTaskSummaryView, fallback: string) {
   }
   if (task.queue_state === "current") {
     return "Current";
+  }
+  if (task.queue_state === "waiting") {
+    return "Waiting";
   }
   if (task.queue_state === "queued") {
     return "Queued";
@@ -3301,7 +3309,18 @@ function ResidentCarrySummary({
 }
 
 function sceneStateLabel(state: ReturnType<typeof currentResidentScenePose>["state"]) {
-  return state === "idle" ? "Idle" : state === "walking" ? "Walking" : state === "blocked" ? "Blocked" : "Working";
+  switch (state) {
+    case "idle":
+      return "Idle";
+    case "walking":
+      return "Walking";
+    case "blocked":
+      return "Blocked";
+    case "waiting":
+      return "Waiting (free for other work)";
+    case "working":
+      return "Working";
+  }
 }
 
 function FarmhouseActions({

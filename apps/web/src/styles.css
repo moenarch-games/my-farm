@@ -1863,6 +1863,12 @@ button[aria-disabled="true"] {
   background: #e5edd4;
 }
 
+.resident-queue-steps li.resident-queue-step--autonomous {
+  border: 1px dashed #9cae78;
+  background: transparent;
+  font-style: italic;
+}
+
 .resident-queue-steps li div {
   display: grid;
   gap: 1px;

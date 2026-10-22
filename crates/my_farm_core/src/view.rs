@@ -1,6 +1,6 @@
 use crate::{
-    CatalogDocument, FarmState, ItemKind, ItemStack, ReservedWorkTarget, ResidentTask,
-    ResidentTaskKind, ResidentTaskStep, ResidentTaskStepWork, StorageSourceRef, Tile,
+    AutonomousPhase, CatalogDocument, FarmState, ItemKind, ItemStack, ReservedWorkTarget,
+    ResidentTask, ResidentTaskKind, ResidentTaskStep, ResidentTaskStepWork, StorageSourceRef, Tile,
     barn_storage_used, crop_storage_used,
 };
 use schemars::JsonSchema;
@@ -133,6 +133,8 @@ pub enum ResidentWorkState {
     Idle,
     Walking,
     Working,
+    /// The current task is in an autonomous phase; the Resident is released.
+    Waiting,
     Blocked,
 }
 
@@ -159,6 +161,7 @@ pub enum ResidentVisualActivity {
     CollectingAnimalProduct,
     DepositingInventory,
     ReturningTools,
+    Waiting,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, PartialEq, Eq)]
@@ -218,6 +221,8 @@ pub struct ResidentStepView {
     pub target: Option<ResidentTargetView>,
     pub quantity: u32,
     pub kind: ItemKind,
+    /// False for an autonomous-wait Step, which runs without its Resident.
+    pub requires_resident: bool,
     #[ts(type = "number")]
     pub walk_duration_ms: i64,
     #[ts(type = "number")]
@@ -230,6 +235,8 @@ pub struct ResidentStepView {
 #[serde(rename_all = "snake_case")]
 pub enum ResidentTaskQueueState {
     Current,
+    /// Current, but in an autonomous phase that does not need the Resident.
+    Waiting,
     Queued,
     Blocked,
 }
@@ -501,6 +508,13 @@ fn resident_work(
             let state = resident_state(farm, &resident.id, current_task, current_step, block);
             let target = current_step.and_then(|step| resident_target_view(farm, step));
             let scene = resident_scene_view(farm, &resident.id, current_task, current_step, &state);
+            let head_state = if block.is_some() {
+                ResidentTaskQueueState::Blocked
+            } else if current_step.is_some_and(ResidentTaskStep::is_autonomous_wait) {
+                ResidentTaskQueueState::Waiting
+            } else {
+                ResidentTaskQueueState::Current
+            };
             let queue_views = queue
                 .iter()
                 .enumerate()
@@ -509,28 +523,16 @@ fn resident_work(
                         catalog,
                         farm,
                         task,
-                        if index == 0 && block.is_some() {
-                            ResidentTaskQueueState::Blocked
-                        } else if index == 0 {
-                            ResidentTaskQueueState::Current
+                        if index == 0 {
+                            head_state.clone()
                         } else {
                             ResidentTaskQueueState::Queued
                         },
                     )
                 })
                 .collect::<Vec<_>>();
-            let current_task_view = current_task.map(|task| {
-                resident_task_summary(
-                    catalog,
-                    farm,
-                    task,
-                    if block.is_some() {
-                        ResidentTaskQueueState::Blocked
-                    } else {
-                        ResidentTaskQueueState::Current
-                    },
-                )
-            });
+            let current_task_view = current_task
+                .map(|task| resident_task_summary(catalog, farm, task, head_state.clone()));
             let current_step_view =
                 current_step.map(|step| resident_step_view(farm, catalog, step));
             let block_view = block.map(|block| BlockedResidentTaskView {
@@ -577,6 +579,9 @@ fn resident_state(
     let Some(step) = current_step else {
         return ResidentWorkState::Idle;
     };
+    if step.is_autonomous_wait() {
+        return ResidentWorkState::Waiting;
+    }
     let walk_ends_at_ms = task.started_at_ms + step.walk_duration_ms;
     if !step.walk_path.is_empty() && farm.last_update_ms < walk_ends_at_ms {
         ResidentWorkState::Walking
@@ -630,7 +635,9 @@ fn resident_scene_view(
         ResidentWorkState::Working | ResidentWorkState::Blocked => {
             ResidentScenePoint::from_tile(&approach_tile)
         }
-        ResidentWorkState::Idle => ResidentScenePoint::from_tile(&current_tile),
+        ResidentWorkState::Idle | ResidentWorkState::Waiting => {
+            ResidentScenePoint::from_tile(&current_tile)
+        }
     };
     let mut path = Vec::new();
     if !step.walk_path.is_empty() {
@@ -747,6 +754,7 @@ fn resident_step_view(
         target: resident_target_view(farm, step),
         quantity,
         kind,
+        requires_resident: step.requires_resident(),
         walk_duration_ms: step.walk_duration_ms,
         work_duration_ms: step.work_duration_ms,
         duration_ms: step.duration_ms,
@@ -807,6 +815,10 @@ fn step_quantity_and_kind(
             tools.iter().map(|tool| tool.quantity).sum(),
             ItemKind::Product,
         ),
+        ResidentTaskStepWork::AutonomousWait { phase } => match phase {
+            AutonomousPhase::CropGrowth { .. } => (0, ItemKind::Crop),
+            AutonomousPhase::OvenBake { .. } => (0, ItemKind::Product),
+        },
     }
 }
 
@@ -880,6 +892,14 @@ fn resident_task_step_label(catalog: &CatalogDocument, work: &ResidentTaskStepWo
             format!("Return {}", stack_list_label(catalog, items))
         }
         ResidentTaskStepWork::ReturnTools { .. } => "Return tools".to_owned(),
+        ResidentTaskStepWork::AutonomousWait { phase } => match phase {
+            AutonomousPhase::CropGrowth { crop_id } => {
+                format!("{} growing", item_name(catalog, crop_id))
+            }
+            AutonomousPhase::OvenBake { recipe_id, .. } => {
+                format!("{} baking", recipe_name(catalog, recipe_id))
+            }
+        },
     }
 }
 
@@ -937,6 +957,9 @@ fn visual_cue_for_work(
             ResidentVisualActivity::ReturningTools,
             ResidentVisualProp::ToolBundle,
         ),
+        ResidentTaskStepWork::AutonomousWait { .. } => {
+            (ResidentVisualActivity::Waiting, ResidentVisualProp::None)
+        }
     }
 }
 
@@ -1192,6 +1215,7 @@ fn is_resource_step_work(work: &ResidentTaskStepWork) -> bool {
             | ResidentTaskStepWork::DepositShopStock { .. }
             | ResidentTaskStepWork::PickupShopStock { .. }
             | ResidentTaskStepWork::ReturnTools { .. }
+            | ResidentTaskStepWork::AutonomousWait { .. }
     )
 }
 

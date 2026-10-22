@@ -264,6 +264,7 @@ fn admit_job(
     chain_id: &str,
     request: &ConcreteJobRequest,
 ) -> Result<(), CommandError> {
+    let before = farm.clone();
     let mut at = farm.last_update_ms;
     if let Some(last) = farm
         .resident_task_queues
@@ -540,9 +541,8 @@ fn admit_job(
         }
     };
     let planned = plan_resident_work(&mut projection, catalog, at, kind, vec![work])?;
-    let count = planned.steps.len();
     let id = next_id(farm, "task");
-    let task = ResidentTask {
+    let mut task = ResidentTask {
         stop_requested: false,
         id: id.clone(),
         kind: planned.kind,
@@ -550,6 +550,35 @@ fn admit_job(
         started_at_ms: planned.started_at_ms,
         ready_at_ms: planned.ready_at_ms,
     };
+    // Growth or baking runs on Farm time without the Resident: say so explicitly.
+    let phase = task.steps.iter().find_map(|step| match &step.work {
+        ResidentTaskStepWork::HarvestCrop { crop_id, .. } => Some((
+            step.reserved_work_target.clone(),
+            crate::AutonomousPhase::CropGrowth {
+                crop_id: crop_id.clone(),
+            },
+        )),
+        ResidentTaskStepWork::CollectOvenJob { job_id, recipe_id } => Some((
+            step.reserved_work_target.clone(),
+            crate::AutonomousPhase::OvenBake {
+                job_id: job_id.clone(),
+                recipe_id: recipe_id.clone(),
+            },
+        )),
+        _ => None,
+    });
+    if let Some((target, phase)) = phase {
+        let mut idle_from = farm.last_update_ms;
+        if let Some(last) = farm
+            .resident_task_queues
+            .get(&request.resident_id)
+            .and_then(|queue| queue.last())
+        {
+            idle_from = idle_from.max(tail(last)?);
+        }
+        autonomous_wait::prepend_wait(&mut task, idle_from, target, phase);
+    }
+    let count = task.steps.len();
     tail(&task)?;
     let mut completed_at = task.ready_at_ms;
     for (index, step) in task.steps.iter().enumerate() {
@@ -587,7 +616,7 @@ fn admit_job(
                 resident_id: request.resident_id.clone(),
                 after: request.after.clone(),
                 inputs: request.inputs.clone(),
-                task_ids: vec![id],
+                task_ids: vec![id.clone()],
                 production_job_id,
                 work: request.work.clone(),
                 initial_step_count: count,
@@ -597,6 +626,11 @@ fn admit_job(
                 input_claims_released: false,
             },
         );
+    if let Some(fitted) =
+        autonomous_wait::fit_before_wait(&before, farm, catalog, &request.resident_id, &id)
+    {
+        *farm = fitted;
+    }
     Ok(())
 }
 
@@ -773,6 +807,24 @@ pub(super) fn reconcile(farm: &mut FarmState) -> Result<(), CommandError> {
                 i64::MIN
             };
             let task = &mut queue[index];
+            if autonomous_wait::starts_with_wait(task) {
+                // Dependencies gate the Resident's arrival for its first Step after
+                // the wait; the wait stretches to meet them.
+                let start = task.started_at_ms.max(previous);
+                let walk = task
+                    .steps
+                    .get(1)
+                    .map_or(0, |step| step.walk_duration_ms.max(0));
+                let work_start = task
+                    .ready_at_ms
+                    .max(dependency_at.saturating_sub(walk))
+                    .max(start);
+                if start != task.started_at_ms || work_start != task.ready_at_ms {
+                    changed = true;
+                    autonomous_wait::set_wait_window(task, start, work_start);
+                }
+                continue;
+            }
             let start = task.started_at_ms.max(dependency_at).max(previous);
             if start > task.started_at_ms {
                 changed = true;
@@ -825,6 +877,15 @@ pub(super) fn reconcile(farm: &mut FarmState) -> Result<(), CommandError> {
     }
     Ok(())
 }
+/// A committed job's own cleanup (e.g. its Barn or Silo Deposit Step) is part of
+/// the accepted work; later admissions cannot strip and postpone it (#271).
+pub(super) fn is_job_task(farm: &FarmState, resident: &str, id: &str) -> bool {
+    farm.concrete_chains
+        .values()
+        .flat_map(|chain| chain.jobs.values())
+        .any(|job| job.resident_id == resident && job.task_ids.iter().any(|task| task == id))
+}
+
 pub(super) fn required_task(farm: &FarmState, resident: &str, id: &str) -> bool {
     farm.concrete_chains.iter().any(|(chain_id, chain)| {
         chain.jobs.values().any(|job| {
