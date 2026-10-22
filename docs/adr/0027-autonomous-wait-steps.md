@@ -32,6 +32,15 @@ their own deposits.
 
 The read model reports `requires_resident` on each Step view, a `waiting`
 Resident state and a `waiting` head queue state. The web Resident Details show
-these as "Waiting (free for other work)" and "Resident free Ns". Waits are saved
+these as "Waiting (free for other work)" and "Resident free Ns".
+
+Each Step view also carries a `phase` (`active_work`, `autonomous_wait` or
+`collection_deposit`) and predicted `starts_at_ms`/`ends_at_ms` (#273). These are
+read from the task's authoritative schedule: the head Step spans `started_at_ms`
+to `ready_at_ms`, and each later Step follows directly, as the executor runs them.
+Walking is the first `walk_duration_ms` of any Resident Step. Resident Details
+shows the phase and the remaining time. The browser only counts down to these
+Farm times and never keeps its own timer. The contract is
+`crates/my_farm_core/tests/resident_step_timing.rs`. Waits are saved
 as ordinary Steps, so save/reload needs no new ledger. Reorder drops wait Steps
 together with the other derived resource Steps.

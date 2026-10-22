@@ -1906,6 +1906,26 @@
         "inside_house"
       ]
     },
+    "ResidentStepPhase": {
+      "description": "What kind of work a Step is, for Resident Details. Every Resident Step also\nwalks first, from `starts_at_ms` for `walk_duration_ms`.",
+      "oneOf": [
+        {
+          "description": "The Resident works at the target: planting, starting the Oven, feeding.",
+          "type": "string",
+          "const": "active_work"
+        },
+        {
+          "description": "An elapsed process runs without the Resident.",
+          "type": "string",
+          "const": "autonomous_wait"
+        },
+        {
+          "description": "The Resident moves items or Tools: pickup, harvest, collect, deposit, return.",
+          "type": "string",
+          "const": "collection_deposit"
+        }
+      ]
+    },
     "ResidentStepView": {
       "type": "object",
       "properties": {
@@ -1916,11 +1936,19 @@
           "type": "integer",
           "format": "int64"
         },
+        "ends_at_ms": {
+          "description": "Predicted Farm time this Step completes.",
+          "type": "integer",
+          "format": "int64"
+        },
         "kind": {
           "$ref": "#/$defs/ItemKind"
         },
         "label": {
           "type": "string"
+        },
+        "phase": {
+          "$ref": "#/$defs/ResidentStepPhase"
         },
         "prop": {
           "$ref": "#/$defs/ResidentVisualProp"
@@ -1933,6 +1961,11 @@
         "requires_resident": {
           "description": "False for an autonomous-wait Step, which runs without its Resident.",
           "type": "boolean"
+        },
+        "starts_at_ms": {
+          "description": "Predicted Farm time this Step starts, from the authoritative task schedule.",
+          "type": "integer",
+          "format": "int64"
         },
         "target": {
           "anyOf": [
@@ -1961,6 +1994,9 @@
         "quantity",
         "kind",
         "requires_resident",
+        "phase",
+        "starts_at_ms",
+        "ends_at_ms",
         "walk_duration_ms",
         "work_duration_ms",
         "duration_ms"

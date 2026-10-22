@@ -127,11 +127,21 @@ export type ResidentTargetView = { kind: ResidentTargetKind, id?: string, label:
 
 export type ResidentSceneView = { tile: ResidentScenePoint, path: Array<ResidentScenePoint>, path_state?: ResidentPathState, inside_house: boolean, };
 
+export type ResidentStepPhase = "active_work" | "autonomous_wait" | "collection_deposit";
+
 export type ResidentStepView = { label: string, activity: ResidentVisualActivity, prop: ResidentVisualProp, target?: ResidentTargetView, quantity: number, kind: ItemKind, 
 /**
  * False for an autonomous-wait Step, which runs without its Resident.
  */
-requires_resident: boolean, walk_duration_ms: number, work_duration_ms: number, duration_ms: number, };
+requires_resident: boolean, phase: ResidentStepPhase, 
+/**
+ * Predicted Farm time this Step starts, from the authoritative task schedule.
+ */
+starts_at_ms: number, 
+/**
+ * Predicted Farm time this Step completes.
+ */
+ends_at_ms: number, walk_duration_ms: number, work_duration_ms: number, duration_ms: number, };
 
 export type ResidentTaskQueueState = "current" | "waiting" | "queued" | "blocked";
 

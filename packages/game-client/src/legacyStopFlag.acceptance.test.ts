@@ -18,7 +18,8 @@ function legacyFixture() {
   resident.carry = { items: [{ item_id: "wheat", name: "Wheat", quantity: 3, kind: "crop" }],
                      tools: [{ tool_kind: "sickle", label: "Sickle", quantity: 1 }] };
   const step = { label: "Harvest Wheat", activity: "harvesting", prop: "basket",
-    quantity: 3, kind: "crop", requires_resident: true, walk_duration_ms: 1000, work_duration_ms: 2000, duration_ms: 3000 } satisfies NonNullable<ResidentWorkView["current_step"]>;
+    quantity: 3, kind: "crop", requires_resident: true, phase: "collection_deposit",
+    starts_at_ms: 1000, ends_at_ms: 4000, walk_duration_ms: 1000, work_duration_ms: 2000, duration_ms: 3000 } satisfies NonNullable<ResidentWorkView["current_step"]>;
   resident.current_step = step;
   resident.current_task = { id: "retained-harvest", kind: { type: "field_work" }, label: "Harvest Wheat",
     step_count: 1, steps: [step], preview: { path: [{ x: 11, y: 12 }] }, queue_state: "current",
