@@ -1,3 +1,5 @@
+import { assertAllowedServerUrl } from "./serverUrlPolicy";
+
 const serverProfileKey = "my-farm.mobile.server-url.v1";
 const recentServerUrlsKey = "my-farm.mobile.recent-server-urls.v1";
 const maxRecentUrls = 5;
@@ -30,6 +32,7 @@ export async function saveServerUrl(store: ServerProfileStore, value: string): P
   if (!normalized) {
     throw new Error("Server URL is required");
   }
+  assertAllowedServerUrl(normalized);
   await store.setItem(serverProfileKey, normalized);
   await rememberServerUrl(store, normalized);
   return normalized;

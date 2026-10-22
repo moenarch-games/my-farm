@@ -45,4 +45,11 @@ describe("server profile", () => {
   test("rejects blank server URLs", async () => {
     await expect(saveServerUrl(memoryStore(), "   ")).rejects.toThrow("Server URL is required");
   });
+
+  test("rejects plain http to public hosts but allows https", async () => {
+    const store = memoryStore();
+    await expect(saveServerUrl(store, "farm.example.com:8081")).rejects.toThrow("Use https://");
+    expect(await loadRecentServerUrls(store)).toEqual([]);
+    expect(await saveServerUrl(store, "https://farm.example.com")).toBe("https://farm.example.com");
+  });
 });
