@@ -13,5 +13,9 @@
       "harvested"
     ]
   },
-  "profile": "static-glb-png-v1"
+  "profile": "static-glb-png-v1",
+  "feedbackKits": {
+    "farm.harvest-pop": "subtle",
+    "ui.reward-pulse": "subtle"
+  }
 }
