@@ -576,6 +576,146 @@ impl<'de> Deserialize<'de> for ResidentTaskStep {
     }
 }
 
+/// One authoritative resource or presence a Resident Task Step needs.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum StepRequirement {
+    /// The assigned Resident must be present (walking and working).
+    Resident,
+    /// A carried Tool copy must be in the Resident's custody.
+    Tool { tool_kind: ToolKind },
+    /// An exclusive work target, claimed while the Step is pending.
+    WorkTarget { target: ReservedWorkTarget },
+    /// A shared Structure (storage or Tool Source) the Resident must reach.
+    Structure { target: ReservedWorkTarget },
+}
+
+/// Which part of a Step a requirement covers. Every Step is its walk then its work.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum StepRequirementSpan {
+    /// From the Step's start (walk begins) through its end.
+    WalkAndWork,
+    /// From arrival (walk ends) through the Step's end.
+    Work,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct StepRequirementDeclaration {
+    pub requirement: StepRequirement,
+    pub span: StepRequirementSpan,
+}
+
+/// A declared requirement placed on Farm time.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct StepRequirementWindow {
+    pub requirement: StepRequirement,
+    pub begins_at_ms: i64,
+    pub ends_at_ms: i64,
+}
+
+impl ResidentTaskStepWork {
+    /// The Tool this work needs while it is being performed.
+    pub fn required_tool(&self) -> Option<ToolKind> {
+        match self {
+            Self::PlantCrop { .. } => Some(ToolKind::Hoe),
+            Self::HarvestCrop { .. } => Some(ToolKind::Sickle),
+            Self::StartOvenRecipe { .. } => Some(ToolKind::MixingBowl),
+            Self::CollectOvenJob { .. } => Some(ToolKind::OvenMitt),
+            Self::FeedAnimal => Some(ToolKind::FeedBucket),
+            Self::CollectAnimalProduct { .. } => Some(ToolKind::CollectionPail),
+            Self::CollectMachineJob { .. } => Some(ToolKind::Wrench),
+            _ => None,
+        }
+    }
+}
+
+impl ResidentTaskStep {
+    /// The resources/presence this Step requires and which part of the Step each covers.
+    /// Derived from the saved Step, so save/reload preserves it without a second ledger.
+    pub fn requirements(&self) -> Vec<StepRequirementDeclaration> {
+        let mut declared = vec![StepRequirementDeclaration {
+            requirement: StepRequirement::Resident,
+            span: StepRequirementSpan::WalkAndWork,
+        }];
+        if let Some(tool_kind) = self.work.required_tool() {
+            declared.push(StepRequirementDeclaration {
+                requirement: StepRequirement::Tool { tool_kind },
+                span: StepRequirementSpan::Work,
+            });
+        }
+        let target = self.reserved_work_target.clone();
+        declared.push(StepRequirementDeclaration {
+            requirement: if self.claimed_work_target().is_some() {
+                StepRequirement::WorkTarget { target }
+            } else {
+                StepRequirement::Structure { target }
+            },
+            span: StepRequirementSpan::Work,
+        });
+        declared
+    }
+
+    /// Requirement windows for this Step when it ends at `ends_at_ms`.
+    pub fn requirement_windows(&self, ends_at_ms: i64) -> Vec<StepRequirementWindow> {
+        let begins_at_ms = ends_at_ms.saturating_sub(self.duration_ms.max(0));
+        let arrives_at_ms =
+            begins_at_ms.saturating_add(self.walk_duration_ms.clamp(0, self.duration_ms.max(0)));
+        self.requirements()
+            .into_iter()
+            .map(|declared| StepRequirementWindow {
+                requirement: declared.requirement,
+                begins_at_ms: match declared.span {
+                    StepRequirementSpan::WalkAndWork => begins_at_ms,
+                    StepRequirementSpan::Work => arrives_at_ms,
+                },
+                ends_at_ms,
+            })
+            .collect()
+    }
+
+    /// The exclusive work target this Step claims, if any.
+    pub fn claimed_work_target(&self) -> Option<&ReservedWorkTarget> {
+        match &self.reserved_work_target {
+            ReservedWorkTarget::Silo
+            | ReservedWorkTarget::Barn
+            | ReservedWorkTarget::ToolSource => None,
+            target => Some(target),
+        }
+    }
+}
+
+impl ResidentTask {
+    /// Requirement windows of every remaining Step, on the task's planned Farm time.
+    /// The head Step ends at `ready_at_ms`; later Steps follow back to back.
+    pub fn step_requirement_windows(&self) -> Vec<(usize, StepRequirementWindow)> {
+        let mut ends_at_ms = self.ready_at_ms;
+        let mut windows = Vec::new();
+        for (index, step) in self.steps.iter().enumerate() {
+            if index > 0 {
+                ends_at_ms = ends_at_ms.saturating_add(step.duration_ms.max(0));
+            }
+            windows.extend(
+                step.requirement_windows(ends_at_ms)
+                    .into_iter()
+                    .map(|window| (index, window)),
+            );
+        }
+        windows
+    }
+}
+
+/// Exclusive work targets currently claimed by pending Steps across all Residents.
+/// A claim begins at admission and is released at the boundary where its Step completes.
+pub fn claimed_work_targets(farm: &FarmState) -> Vec<&ReservedWorkTarget> {
+    farm.resident_task_queues
+        .values()
+        .flat_map(|queue| queue.iter())
+        .flat_map(|task| task.steps.iter())
+        .filter_map(ResidentTaskStep::claimed_work_target)
+        .collect()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ResidentTaskStepWork {
