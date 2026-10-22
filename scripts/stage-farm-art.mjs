@@ -33,10 +33,68 @@ for (const channel of ["color", "normal", "roughness"]) {
   assert.deepEqual(bytes.subarray(0, 8), Buffer.from("89504e470d0a1a0a", "hex"), name);
   selected.push({ name, bytes, source: { kind: "image", mediaType: "image/png" } });
 }
+const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
+const storeObject = (sha) => readFile(path.join(upstream, ".asset-tooling/objects/v1/sha256", sha.slice(0, 2), sha));
+for (const [kitName, intensity] of Object.entries(config.feedbackKits ?? {})) {
+  const kitDir = path.join(upstream, ".artifacts/feedback-kits", kitName);
+  const kit = JSON.parse(await readFile(path.join(kitDir, "kit.json"), "utf8"));
+  assert.equal(kit.kit, kitName);
+  assert.equal(kit.schemaVersion, 1);
+  assert.equal(kit.presentation, "cosmetic-only");
+  const variant = kit.variants[intensity];
+  assert.ok(variant, `Missing ${kitName} ${intensity} variant`);
+  const wav = await readFile(path.join(kitDir, `${intensity}.wav`));
+  assert.equal(sha256(wav), variant.audio.cue.sha256, `${kitName} ${intensity}.wav`);
+  const atlasBytes = await storeObject(variant.visual.atlas.sha256);
+  assert.equal(sha256(atlasBytes), variant.visual.atlas.sha256, `${kitName} atlas`);
+  const atlas = JSON.parse(atlasBytes.toString("utf8"));
+  assert.equal(atlas.coordinates, "top-left-pixels");
+  const base = `${kitName}.${intensity}`;
+  // The page needs only frame geometry and timing; keep the kit receipt hashes for audit.
+  const sequence = {
+    schemaVersion: 1,
+    kit: kitName,
+    intensity,
+    kitSha256: sha256(await readFile(path.join(kitDir, "kit.json"))),
+    atlasSha256: variant.visual.atlas.sha256,
+    concurrency: kit.concurrency,
+    endMs: variant.endMs,
+    audio: { file: `${base}.wav`, onsetMs: variant.audio.onsetMs, durationMs: variant.audio.durationMs },
+    visual: {
+      file: `${base}.atlas.png`,
+      reducedMotionFile: `${base}.reduced-motion.png`,
+      onsetMs: variant.visual.onsetMs,
+      width: atlas.width,
+      height: atlas.height,
+      frames: atlas.sprites.map((sprite) => ({
+        timeMs: sprite.frame.timeMs,
+        durationMs: sprite.frame.durationMs,
+        empty: sprite.empty,
+        rect: sprite.rect,
+        trimOffset: sprite.trimOffset,
+        sourceSize: sprite.sourceSize,
+      })),
+    },
+  };
+  selected.push({ name: `${base}.wav`, bytes: wav, source: variant.audio.cue });
+  for (const name of ["atlas", "reduced-motion"]) {
+    const bytes = await readFile(path.join(kitDir, `${intensity}.${name}.png`));
+    selected.push({ name: `${base}.${name}.png`, bytes, source: { kind: "image", mediaType: "image/png" } });
+  }
+  selected.push({
+    name: `${base}.json`,
+    bytes: Buffer.from(JSON.stringify(sequence, null, 2) + "\n"),
+    source: { kind: "feedback-sequence", mediaType: "application/json", atlasSha256: variant.visual.atlas.sha256 },
+  });
+}
 // Publish only after validating the complete selected closure.
 for (const asset of selected) {
   if (asset.name.endsWith(".glb")) {
     assert.equal(asset.bytes.toString("ascii", 0, 4), "glTF", asset.name);
+  } else if (asset.name.endsWith(".wav")) {
+    assert.equal(asset.bytes.toString("ascii", 0, 4), "RIFF", asset.name);
+  } else if (asset.name.endsWith(".json")) {
+    JSON.parse(asset.bytes.toString("utf8"));
   } else {
     assert.deepEqual(asset.bytes.subarray(0, 8), Buffer.from("89504e470d0a1a0a", "hex"), asset.name);
   }
