@@ -5,8 +5,8 @@ import * as THREE from "three";
 import type { StructureFootprint } from "@my-farm/game-model/selectors";
 import type { StructureProductionStatus } from "@my-farm/game-model/structureStatus";
 import { colorForItem } from "../../assets/sprites";
-import type { WheatAppearance } from "@my-farm/game-model";
-import { WheatStalks } from "./WheatStalks";
+import type { CropAppearance } from "@my-farm/game-model";
+import { CropPlants } from "./CropPlants";
 import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
 
 export type FarmAssetKind =
@@ -29,9 +29,9 @@ export type FarmAssetState = {
   productionStatus?: StructureProductionStatus;
   cropItemId?: string;
   cropReady?: boolean;
-  wheatAppearance?: WheatAppearance | null;
-  wheatWindPhase?: number;
-  wheatAnimationPaused?: boolean;
+  cropAppearance?: CropAppearance | null;
+  cropWindPhase?: number;
+  cropAnimationPaused?: boolean;
 };
 
 type FarmAssetProps = {
@@ -309,9 +309,9 @@ function FieldPlotAsset({ state }: { state: FarmAssetState }) {
       }>
         <TilledSoil />
       </Suspense>
-      {state.wheatAppearance ? (
+      {state.cropAppearance ? (
         <Suspense fallback={null}>
-          <WheatStalks appearance={state.wheatAppearance} windPhase={state.wheatWindPhase ?? 0} paused={state.wheatAnimationPaused ?? false} />
+          <CropPlants appearance={state.cropAppearance} windPhase={state.cropWindPhase ?? 0} paused={state.cropAnimationPaused ?? false} />
         </Suspense>
       ) : state.cropItemId ? (
         <CropCluster color={cropColor} ready={state.cropReady ?? false} />

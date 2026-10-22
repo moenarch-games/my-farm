@@ -7,7 +7,7 @@ Shared convention source: `46d8793bb3034326561f876dcc67dbaa5aa1e432`.
 
 Atlas 1.1.1, 1.2.1 and 1.4.1 require real Pages play, readable phone crops and a compact scene-first HUD. ADR 0007 distinguishes browser-local WASM persistence from the normal server runtime; ADR 0022 preserves shared Rust gameplay authority. The owner-approved #217 repair changes verification ownership, not gameplay or the full #125 visual acceptance.
 
-`wheat-art.spec.ts` creates a crop through real Rust WASM commands and resident work, writes its browser-local save, and adjusts fixture growth timestamps. `api.ts` loads that save only for `VITE_MY_FARM_RUNTIME=wasm_demo`. The server configuration currently discovers this fixture despite using the HTTP/WebSocket runtime. Page clock or localStorage changes cannot seed or advance that server Farm.
+`crop-art.spec.ts` creates a crop through real Rust WASM commands and resident work, writes its browser-local save, and adjusts fixture growth timestamps. `api.ts` loads that save only for `VITE_MY_FARM_RUNTIME=wasm_demo`. The server configuration currently discovers this fixture despite using the HTTP/WebSocket runtime. Page clock or localStorage changes cannot seed or advance that server Farm.
 
 ## Executable discovery contract
 

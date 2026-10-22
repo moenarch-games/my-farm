@@ -13,7 +13,8 @@ assert.equal(manifest.assetToolingCommit, config.assetToolingCommit);
 assert.equal(manifest.soilPreset, config.soilPreset);
 assert.equal(manifest.profile, config.profile);
 const expected = [
-  ...config.wheatStages.flatMap((stage) => [`wheat-${stage}.glb`, `wheat-${stage}.png`]),
+  ...Object.entries(config.crops).flatMap(([crop, stages]) =>
+    stages.flatMap((stage) => [`${crop}-${stage}.glb`, `${crop}-${stage}.png`])),
   ...["color", "normal", "roughness"].map((channel) => `${config.soilPreset}-${channel}.png`),
 ].sort();
 assert.deepEqual(Object.keys(manifest.files).sort(), expected);
@@ -26,4 +27,4 @@ for (const name of expected) {
   assert.equal(entry.source.kind, name.endsWith(".glb") ? "mesh" : "image", name);
   if (entry.source.sha256) assert.equal(entry.source.sha256, entry.sha256);
 }
-console.log(`Verified ${expected.length} pinned Wheat and Field Plot assets`);
+console.log(`Verified ${expected.length} pinned Crop and Field Plot assets`);
