@@ -329,7 +329,7 @@ jobs:
           if-no-files-found: ignore
 
   validate:
-    name: merge-ready
+    name: ${{ github.event_name == 'pull_request' && 'merge-ready' || 'validation-summary' }}
     if: ${{ always() }}
     needs: [resolve-farm-art-source, build-farm-art, build-wasm-demo, validate-core, validate-web]
     runs-on: ubuntu-latest
