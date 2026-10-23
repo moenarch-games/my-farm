@@ -89,6 +89,7 @@ import {
   taskLabel,
 } from "@my-farm/game-model/residentTasks";
 import { decorationPlacementStatus, type RoomTile } from "@my-farm/game-model/houseInterior";
+import { updateFarmSettings, useFarmSettings } from "./farmSettings";
 import type {
   AnimalShelterState,
   CatalogDocument,
@@ -1561,9 +1562,8 @@ function MainMenu({
   onOpenMarket: () => void;
 }) {
   const [panel, setPanel] = useState<MainMenuPanel>("home");
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const settings = useFarmSettings();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [reducedMotion, setReducedMotion] = useState(false);
 
   const openHome = () => {
     window.history.pushState(null, "", homePageHref());
@@ -1619,8 +1619,8 @@ function MainMenu({
                 <span>Sound</span>
                 <input
                   type="checkbox"
-                  checked={soundEnabled}
-                  onChange={(event) => setSoundEnabled(event.target.checked)}
+                  checked={settings.sound}
+                  onChange={(event) => updateFarmSettings({ sound: event.target.checked })}
                 />
               </label>
               <label>
@@ -1635,8 +1635,8 @@ function MainMenu({
                 <span>Reduced Motion</span>
                 <input
                   type="checkbox"
-                  checked={reducedMotion}
-                  onChange={(event) => setReducedMotion(event.target.checked)}
+                  checked={settings.reducedMotion}
+                  onChange={(event) => updateFarmSettings({ reducedMotion: event.target.checked })}
                 />
               </label>
             </div>

@@ -617,6 +617,52 @@ button[aria-disabled="true"] {
   pointer-events: none !important;
 }
 
+.farm-feedback-wrapper {
+  pointer-events: none !important;
+}
+
+.farm-feedback {
+  position: relative;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.farm-feedback__sprite {
+  position: relative;
+  display: block;
+  grid-area: 1 / 1;
+}
+
+.farm-feedback__icon {
+  grid-area: 1 / 1;
+  animation: farm-feedback-icon-pulse 600ms ease-out both;
+}
+
+.farm-feedback__icon .resource-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.farm-feedback--still .farm-feedback__icon {
+  animation: none;
+}
+
+@keyframes farm-feedback-icon-pulse {
+  0% {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+  30% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
 .farm-scene-resident-ui {
   display: grid;
   justify-items: center;

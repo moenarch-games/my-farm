@@ -21,6 +21,7 @@ import {
 import { FarmArrivalEnvironment, FarmAsset, type FarmAssetKind } from "./farmScene/assets";
 import { cropAppearanceForCrop, cropAppearanceLabel } from "@my-farm/game-model";
 import { FarmResidentFigure, type FarmResidentPresentation } from "./farmScene/residents";
+import { HarvestFeedbackLayer } from "./farmScene/HarvestFeedbackLayer";
 import {
   computeFarmCameraFrame,
   type FarmCameraFrame,
@@ -138,6 +139,7 @@ export function FarmScene({
       <FarmCameraController activeFieldTool={activeFieldTool} harvestSweep={harvestSweep} plantSweep={plantSweep} />
       <group>
         <FarmArrivalEnvironment />
+        <HarvestFeedbackLayer catalog={catalog} view={view} />
         <FarmGround
           view={view}
           buildPlacement={buildPlacement}

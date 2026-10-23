@@ -44,7 +44,7 @@ cargo run
 bun run dev:mobile
 ```
 
-Use the in-app server URL field to point a simulator or device at the Rust server, such as `http://castle:8081` on the local network. This mobile slice includes the native connection flow, main menu, farm scene shell, HUD, diagnostics, and native screens for residents, market/shop, delivery orders, farmhouse actions, wiki, and settings.
+Use the in-app server URL field to point a simulator or device at the Rust server, such as `http://castle.local:8081` on the local network. Plain `http://` is accepted only for loopback, private (10/8, 172.16/12, 192.168/16), link-local (169.254/16) and `.local` hosts; any other host must use `https://`. Release builds keep this working through `apps/mobile/plugins/withLocalNetworkCleartext.cjs` (Android network security config, iOS `NSAllowsLocalNetworking`). This mobile slice includes the native connection flow, main menu, farm scene shell, HUD, diagnostics, and native screens for residents, market/shop, delivery orders, farmhouse actions, wiki, and settings.
 
 For an Android emulator running on this machine, use `http://10.0.2.2:8081` as the Farm server URL. The local Android toolchain expects an AVD to exist before running the development build:
 
