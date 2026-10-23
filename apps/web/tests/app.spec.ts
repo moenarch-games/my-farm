@@ -876,6 +876,50 @@ test("blocked resident work shows a scene warning and Resident Details reason", 
   await expect(details.getByRole("listitem").filter({ hasText: "Plant Wheat" })).toContainText("Blocked");
 });
 
+test("Resident Details shows an autonomous wait as free Resident time", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === "mobile", "Resident Details content is covered on desktop.");
+  const now = Date.now();
+  const view = withResidentTaskQueues(farmView, {
+    woman: [
+      task({
+        stop_requested: false,
+        id: "harvest-task",
+        kind: { type: "field_work" },
+        started_at_ms: now - 5_000,
+        ready_at_ms: now + 55_000,
+        steps: [
+          taskStep({
+            reserved_work_target: { type: "field_plot", plot_id: "plot-1" },
+            work: { type: "autonomous_wait", phase: { type: "crop_growth", crop_id: "wheat" } },
+            duration_ms: 60_000,
+          }),
+          taskStep({
+            reserved_work_target: { type: "field_plot", plot_id: "plot-1" },
+            work: { type: "harvest_crop", crop_id: "wheat", quantity: 2 },
+            approach_tile: { x: 0, y: 0 },
+            duration_ms: 1_000,
+          }),
+        ],
+      }),
+    ],
+    man: [],
+  });
+  await mockFarmApi(page, view);
+  await openFarm(page);
+
+  await page.getByTestId("farm-scene-resident-woman").click({ force: true });
+  const details = page.locator(".resident-details-panel");
+  await expect(details.getByRole("heading", { name: "Resident Details" })).toBeVisible();
+  await expect(details.getByText("Waiting (free for other work)")).toBeVisible();
+  await expect(details.getByText("Wheat growing").first()).toBeVisible();
+  const row = details.locator(".resident-queue-task").filter({ hasText: "Harvest Wheat" });
+  await expect(row).toContainText("Waiting - 2 steps");
+  await row.locator("summary").click();
+  const waitStep = row.locator(".resident-queue-step--autonomous");
+  await expect(waitStep).toContainText("Wheat growing");
+  await expect(waitStep).toContainText("Resident free 60s");
+});
+
 test("mobile opens Resident Details as a bottom sheet", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile", "Mobile bottom sheet behavior is covered in the mobile project.");
   await mockFarmApi(page);
@@ -3976,7 +4020,10 @@ function withResidentTaskQueues(
       const currentTile = view.resident_locations[resident.id] ?? { x: 8, y: 10 };
       const path = currentStep?.walk_path.length ? [currentTile, ...currentStep.walk_path] : [];
       const target = currentStep ? targetViewForStep(view, currentStep) : undefined;
-      const state = currentTask && currentStep
+      const waiting = currentStep?.work.type === "autonomous_wait";
+      const state = waiting
+        ? "waiting"
+        : currentTask && currentStep
         ? currentStep.walk_path.length > 0 && Date.now() < currentTask.started_at_ms + currentStep.walk_duration_ms
           ? "walking"
           : "working"
@@ -3987,8 +4034,10 @@ function withResidentTaskQueues(
         display_name: resident.display_name,
         selected: resident.id === view.selected_resident_id,
         state,
-        current_task: currentTask ? taskSummary(view, currentTask, "current") : undefined,
-        queue: queue.map((task, index) => taskSummary(view, task, index === 0 ? "current" : "queued")),
+        current_task: currentTask ? taskSummary(view, currentTask, waiting ? "waiting" : "current") : undefined,
+        queue: queue.map((task, index) =>
+          taskSummary(view, task, index === 0 ? (waiting ? "waiting" : "current") : "queued"),
+        ),
         current_step: currentStep ? stepView(view, currentStep) : undefined,
         target,
         scene: {
@@ -4012,7 +4061,11 @@ function withResidentTaskQueues(
   };
 }
 
-function taskSummary(view: FarmView, task: ResidentTask, queueState: "current" | "queued" | "blocked") {
+function taskSummary(
+  view: FarmView,
+  task: ResidentTask,
+  queueState: "current" | "waiting" | "queued" | "blocked",
+) {
   const previewTargetStep = task.steps.find((step) => !isResourceStep(step)) ?? task.steps[0];
   return {
     id: task.id,
@@ -4041,6 +4094,7 @@ function stepView(view: FarmView, step: ResidentTask["steps"][number]) {
     target,
     quantity,
     kind,
+    requires_resident: step.work.type !== "autonomous_wait",
     walk_duration_ms: step.walk_duration_ms,
     work_duration_ms: step.work_duration_ms,
     duration_ms: step.duration_ms,
@@ -4159,6 +4213,11 @@ function taskLabelForStep(step: ResidentTask["steps"][number] | undefined): stri
   if (work.type === "pickup_tools") return "Pick up tools";
   if (work.type === "deposit_shop_stock") return "Stock Farm Shop";
   if (work.type === "deposit_items" || work.type === "deposit_inventory") return "Store items";
+  if (work.type === "autonomous_wait") {
+    return work.phase.type === "crop_growth"
+      ? `${itemLabel(work.phase.crop_id)} growing`
+      : `${recipeLabel(work.phase.recipe_id)} baking`;
+  }
   return "Return tools";
 }
 
@@ -4190,6 +4249,8 @@ function visualCueForStep(step: ResidentTask["steps"][number]) {
       return { activity: "picking_up_items" as const, prop: "crate" as const };
     case "return_tools":
       return { activity: "returning_tools" as const, prop: "tool_bundle" as const };
+    case "autonomous_wait":
+      return { activity: "waiting" as const, prop: "none" as const };
   }
 }
 
@@ -4202,6 +4263,7 @@ function isResourceStep(step: ResidentTask["steps"][number]) {
     "deposit_items",
     "deposit_shop_stock",
     "return_tools",
+    "autonomous_wait",
   ].includes(step.work.type);
 }
 

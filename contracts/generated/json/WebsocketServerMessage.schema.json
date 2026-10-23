@@ -2390,6 +2390,10 @@
           "format": "uint32",
           "minimum": 0
         },
+        "requires_resident": {
+          "description": "False for an autonomous-wait Step, which runs without its Resident.",
+          "type": "boolean"
+        },
         "target": {
           "anyOf": [
             {
@@ -2416,6 +2420,7 @@
         "prop",
         "quantity",
         "kind",
+        "requires_resident",
         "walk_duration_ms",
         "work_duration_ms",
         "duration_ms"
@@ -2528,11 +2533,20 @@
       ]
     },
     "ResidentTaskQueueState": {
-      "type": "string",
-      "enum": [
-        "current",
-        "queued",
-        "blocked"
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "current",
+            "queued",
+            "blocked"
+          ]
+        },
+        {
+          "description": "Current, but in an autonomous phase that does not need the Resident.",
+          "type": "string",
+          "const": "waiting"
+        }
       ]
     },
     "ResidentTaskSummaryView": {
@@ -2600,7 +2614,8 @@
         "feeding_animal",
         "collecting_animal_product",
         "depositing_inventory",
-        "returning_tools"
+        "returning_tools",
+        "waiting"
       ]
     },
     "ResidentVisualProp": {
@@ -2616,12 +2631,21 @@
       ]
     },
     "ResidentWorkState": {
-      "type": "string",
-      "enum": [
-        "idle",
-        "walking",
-        "working",
-        "blocked"
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "idle",
+            "walking",
+            "working",
+            "blocked"
+          ]
+        },
+        {
+          "description": "The current task is in an autonomous phase; the Resident is released.",
+          "type": "string",
+          "const": "waiting"
+        }
       ]
     },
     "ResidentWorkView": {

@@ -609,6 +609,7 @@ function farmViewWithTask(task: ResidentTask | null): FarmView {
               ...visualCueForStep(currentStep),
               target,
               ...stepQuantityAndKind(currentStep),
+              requires_resident: currentStep.work.type !== "autonomous_wait",
               walk_duration_ms: currentStep.walk_duration_ms,
               work_duration_ms: currentStep.work_duration_ms,
               duration_ms: currentStep.duration_ms,
@@ -667,6 +668,7 @@ function stepView(step: ResidentTask["steps"][number]) {
     ...visualCueForStep(step),
     target: targetViewForStep(step),
     ...stepQuantityAndKind(step),
+    requires_resident: step.work.type !== "autonomous_wait",
     walk_duration_ms: step.walk_duration_ms,
     work_duration_ms: step.work_duration_ms,
     duration_ms: step.duration_ms,
@@ -723,6 +725,8 @@ function visualCueForStep(step: ResidentTask["steps"][number]) {
       return { activity: "picking_up_items" as const, prop: "crate" as const };
     case "return_tools":
       return { activity: "returning_tools" as const, prop: "tool_bundle" as const };
+    case "autonomous_wait":
+      return { activity: "waiting" as const, prop: "none" as const };
   }
 }
 
