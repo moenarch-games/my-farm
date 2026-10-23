@@ -20,6 +20,7 @@ const config: ExpoConfig = {
       backgroundColor: "#9fd3d1",
     },
   },
+  plugins: ["./plugins/withLocalNetworkCleartext.cjs"],
   extra: {
     defaultApiBaseUrl: process.env.EXPO_PUBLIC_MY_FARM_DEFAULT_API_BASE_URL ?? "http://127.0.0.1:8081",
   },

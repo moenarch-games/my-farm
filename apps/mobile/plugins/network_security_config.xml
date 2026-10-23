@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  My Farm connects to a local or LAN Rust server over plain HTTP/WebSocket (ADR 0020, #253).
+  Android domain-config cannot express IP ranges, so cleartext is permitted here and the app
+  enforces the rule: http:// only to loopback, 10/8, 172.16/12, 192.168/16, 169.254/16 and
+  *.local hosts (apps/mobile/src/serverUrlPolicy.ts). Public hosts must use https.
+-->
+<network-security-config>
+  <base-config cleartextTrafficPermitted="true">
+    <trust-anchors>
+      <certificates src="system" />
+    </trust-anchors>
+  </base-config>
+</network-security-config>
