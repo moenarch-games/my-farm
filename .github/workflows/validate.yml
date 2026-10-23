@@ -126,7 +126,7 @@ jobs:
       source_sha: ${{ needs.resolve-farm-art-source.outputs.wasm_source_sha }}
       artifact_key: my-farm-wasm-demo-v1
       bun_version: latest
-      rust_toolchain: "1.96.1"
+      rust_toolchain: stable
       rust_targets: wasm32-unknown-unknown
       cache_cargo: true
       cargo_cache_dependency_path: Cargo.lock
@@ -172,7 +172,7 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
-          toolchain: 1.99.1
+          toolchain: stable
           targets: wasm32-unknown-unknown
           components: rustfmt
 
