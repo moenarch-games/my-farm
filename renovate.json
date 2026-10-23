@@ -3,5 +3,25 @@
   "extends": [
     "github>moritzbrantner/coding-agent-conventions"
   ],
-  "platformAutomerge": true
+  "platformAutomerge": true,
+  "packageRules": [
+    {
+      "description": "Expo SDK pins these mobile versions; update them with `bunx expo install --fix` during an SDK bump so `expo install --check` stays green.",
+      "matchFileNames": ["apps/mobile/package.json"],
+      "matchPackageNames": [
+        "expo",
+        "expo-*",
+        "@expo/*",
+        "babel-preset-expo",
+        "react",
+        "react-dom",
+        "@types/react",
+        "react-native",
+        "react-native-*",
+        "@react-native/*",
+        "@react-native-async-storage/*"
+      ],
+      "enabled": false
+    }
+  ]
 }
