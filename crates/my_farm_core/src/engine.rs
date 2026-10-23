@@ -914,7 +914,7 @@ fn prerequisite_pickup_requirements(
         missing_projected_items(farm, projected, pickup_inputs)?,
     );
 
-    if let Some(tool_kind) = tool_for_work(&work_step.work) {
+    if let Some(tool_kind) = work_step.work.required_tool() {
         if projected.tools.get(&tool_kind).copied().unwrap_or(0) == 0 {
             let alternatives = available_tool_sources(farm, tool_kind)
                 .into_iter()
@@ -1540,19 +1540,6 @@ fn fallback_tool_return_source(farm: &FarmState, tool_kind: ToolKind) -> ToolSou
         }
     }
     ToolSourceRef::Farmhouse
-}
-
-fn tool_for_work(work: &ResidentTaskStepWork) -> Option<ToolKind> {
-    match work {
-        ResidentTaskStepWork::PlantCrop { .. } => Some(ToolKind::Hoe),
-        ResidentTaskStepWork::HarvestCrop { .. } => Some(ToolKind::Sickle),
-        ResidentTaskStepWork::StartOvenRecipe { .. } => Some(ToolKind::MixingBowl),
-        ResidentTaskStepWork::CollectOvenJob { .. } => Some(ToolKind::OvenMitt),
-        ResidentTaskStepWork::FeedAnimal => Some(ToolKind::FeedBucket),
-        ResidentTaskStepWork::CollectAnimalProduct { .. } => Some(ToolKind::CollectionPail),
-        ResidentTaskStepWork::CollectMachineJob { .. } => Some(ToolKind::Wrench),
-        _ => None,
-    }
 }
 
 fn available_tool_sources(farm: &FarmState, tool_kind: ToolKind) -> Vec<ToolSourceRef> {
@@ -2514,6 +2501,21 @@ fn complete_resident_task_step(
             "physical cleanup target is unreachable",
         ));
     }
+    // A declared Tool requirement must be in this Resident's custody at the Step boundary.
+    if let Some(tool_kind) = step.work.required_tool() {
+        let held = farm
+            .resident_inventories
+            .get(resident_id)
+            .and_then(|inventory| inventory.tools.get(&tool_kind))
+            .copied()
+            .unwrap_or(0);
+        if held == 0 {
+            return Err(ResidentTaskBlock::new(
+                "missing_tools",
+                "the Step's required Tool is not carried",
+            ));
+        }
+    }
     match step.work {
         ResidentTaskStepWork::PickupItems { items, .. } => {
             remove_inventory(farm, &items)
@@ -3086,86 +3088,51 @@ fn step_inventory_outputs(
     }
 }
 
+// Every exclusive-target check reads the Steps' declared requirements.
+fn work_target_is_claimed(farm: &FarmState, matches: impl Fn(&ReservedWorkTarget) -> bool) -> bool {
+    crate::claimed_work_targets(farm).into_iter().any(matches)
+}
+
 fn field_plot_is_reserved(farm: &FarmState, plot_id: &str) -> bool {
-    farm.resident_task_queues
-        .values()
-        .flat_map(|queue| queue.iter())
-        .flat_map(|task| task.steps.iter())
-        .any(|step| {
-            matches!(
-                &step.reserved_work_target,
-                ReservedWorkTarget::FieldPlot { plot_id: reserved_plot_id }
-                    if reserved_plot_id == plot_id
-            )
-        })
+    work_target_is_claimed(
+        farm,
+        |target| matches!(target, ReservedWorkTarget::FieldPlot { plot_id: claimed } if claimed == plot_id),
+    )
 }
 
 fn machine_is_reserved(farm: &FarmState, machine_id: &str) -> bool {
-    farm.resident_task_queues
-        .values()
-        .flat_map(|queue| queue.iter())
-        .flat_map(|task| task.steps.iter())
-        .any(|step| {
-            matches!(
-                &step.reserved_work_target,
-                ReservedWorkTarget::Machine { machine_id: reserved_machine_id }
-                    if reserved_machine_id == machine_id
-            )
-        })
+    work_target_is_claimed(
+        farm,
+        |target| matches!(target, ReservedWorkTarget::Machine { machine_id: claimed } if claimed == machine_id),
+    )
 }
 
 fn oven_is_reserved(farm: &FarmState) -> bool {
-    farm.resident_task_queues
-        .values()
-        .flat_map(|queue| queue.iter())
-        .flat_map(|task| task.steps.iter())
-        .any(|step| matches!(&step.reserved_work_target, ReservedWorkTarget::Oven))
+    work_target_is_claimed(farm, |target| matches!(target, ReservedWorkTarget::Oven))
 }
 
 fn shelter_is_reserved(farm: &FarmState, shelter_id: &str) -> bool {
-    farm.resident_task_queues
-        .values()
-        .flat_map(|queue| queue.iter())
-        .flat_map(|task| task.steps.iter())
-        .any(|step| {
-            matches!(
-                &step.reserved_work_target,
-                ReservedWorkTarget::Animal {
-                    shelter_id: reserved_shelter_id,
-                    ..
-                } if reserved_shelter_id == shelter_id
-            )
-        })
+    work_target_is_claimed(
+        farm,
+        |target| matches!(target, ReservedWorkTarget::Animal { shelter_id: claimed, .. } if claimed == shelter_id),
+    )
 }
 
 fn animal_slot_is_reserved(farm: &FarmState, shelter_id: &str, animal_slot: &str) -> bool {
-    farm.resident_task_queues
-        .values()
-        .flat_map(|queue| queue.iter())
-        .flat_map(|task| task.steps.iter())
-        .any(|step| {
-            matches!(
-                &step.reserved_work_target,
-                ReservedWorkTarget::Animal {
-                    shelter_id: reserved_shelter_id,
-                    animal_slot: reserved_animal_slot
-                } if reserved_shelter_id == shelter_id && reserved_animal_slot == animal_slot
-            )
-        })
+    work_target_is_claimed(farm, |target| {
+        matches!(
+            target,
+            ReservedWorkTarget::Animal { shelter_id: claimed_shelter, animal_slot: claimed_slot }
+                if claimed_shelter == shelter_id && claimed_slot == animal_slot
+        )
+    })
 }
 
 fn farm_shop_is_reserved(farm: &FarmState, shop_id: &str) -> bool {
-    farm.resident_task_queues
-        .values()
-        .flat_map(|queue| queue.iter())
-        .flat_map(|task| task.steps.iter())
-        .any(|step| {
-            matches!(
-                &step.reserved_work_target,
-                ReservedWorkTarget::FarmShop { shop_id: reserved_shop_id }
-                    if reserved_shop_id == shop_id
-            )
-        })
+    work_target_is_claimed(
+        farm,
+        |target| matches!(target, ReservedWorkTarget::FarmShop { shop_id: claimed } if claimed == shop_id),
+    )
 }
 
 fn has_storage_room_after_reservations(
