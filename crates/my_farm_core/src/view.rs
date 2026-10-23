@@ -164,6 +164,19 @@ pub enum ResidentVisualActivity {
     Waiting,
 }
 
+/// What kind of work a Step is, for Resident Details. Every Resident Step also
+/// walks first, from `starts_at_ms` for `walk_duration_ms`.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ResidentStepPhase {
+    /// The Resident works at the target: planting, starting the Oven, feeding.
+    ActiveWork,
+    /// An elapsed process runs without the Resident.
+    AutonomousWait,
+    /// The Resident moves items or Tools: pickup, harvest, collect, deposit, return.
+    CollectionDeposit,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ResidentVisualProp {
@@ -223,6 +236,13 @@ pub struct ResidentStepView {
     pub kind: ItemKind,
     /// False for an autonomous-wait Step, which runs without its Resident.
     pub requires_resident: bool,
+    pub phase: ResidentStepPhase,
+    /// Predicted Farm time this Step starts, from the authoritative task schedule.
+    #[ts(type = "number")]
+    pub starts_at_ms: i64,
+    /// Predicted Farm time this Step completes.
+    #[ts(type = "number")]
+    pub ends_at_ms: i64,
     #[ts(type = "number")]
     pub walk_duration_ms: i64,
     #[ts(type = "number")]
@@ -533,8 +553,9 @@ fn resident_work(
                 .collect::<Vec<_>>();
             let current_task_view = current_task
                 .map(|task| resident_task_summary(catalog, farm, task, head_state.clone()));
-            let current_step_view =
-                current_step.map(|step| resident_step_view(farm, catalog, step));
+            let current_step_view = current_task_view
+                .as_ref()
+                .and_then(|task| task.steps.first().cloned());
             let block_view = block.map(|block| BlockedResidentTaskView {
                 task_id: block.task_id.clone(),
                 resident_id: resident.id.clone(),
@@ -707,11 +728,7 @@ fn resident_task_summary(
         kind: task.kind.clone(),
         label: task_label(catalog, task),
         step_count: task.steps.len() as u32,
-        steps: task
-            .steps
-            .iter()
-            .map(|step| resident_step_view(farm, catalog, step))
-            .collect(),
+        steps: resident_step_views(farm, catalog, task),
         preview: resident_task_preview(farm, task),
         queue_state,
         started_at_ms: task.started_at_ms,
@@ -740,10 +757,54 @@ fn resident_task_preview(farm: &FarmState, task: &ResidentTask) -> ResidentTaskP
     }
 }
 
+/// The first Step runs from `started_at_ms` to `ready_at_ms`; each later Step
+/// follows directly, matching the executor and `step_requirement_windows`.
+fn resident_step_views(
+    farm: &FarmState,
+    catalog: &CatalogDocument,
+    task: &ResidentTask,
+) -> Vec<ResidentStepView> {
+    let mut starts_at_ms = task.started_at_ms;
+    let mut ends_at_ms = task.ready_at_ms;
+    task.steps
+        .iter()
+        .enumerate()
+        .map(|(index, step)| {
+            if index > 0 {
+                starts_at_ms = ends_at_ms;
+                ends_at_ms = ends_at_ms.saturating_add(step.duration_ms.max(0));
+            }
+            resident_step_view(farm, catalog, step, starts_at_ms, ends_at_ms)
+        })
+        .collect()
+}
+
+fn resident_step_phase(work: &ResidentTaskStepWork) -> ResidentStepPhase {
+    match work {
+        ResidentTaskStepWork::AutonomousWait { .. } => ResidentStepPhase::AutonomousWait,
+        ResidentTaskStepWork::PlantCrop { .. }
+        | ResidentTaskStepWork::StartOvenRecipe { .. }
+        | ResidentTaskStepWork::FeedAnimal => ResidentStepPhase::ActiveWork,
+        ResidentTaskStepWork::PickupItems { .. }
+        | ResidentTaskStepWork::PickupTools { .. }
+        | ResidentTaskStepWork::HarvestCrop { .. }
+        | ResidentTaskStepWork::CollectMachineJob { .. }
+        | ResidentTaskStepWork::CollectOvenJob { .. }
+        | ResidentTaskStepWork::CollectAnimalProduct { .. }
+        | ResidentTaskStepWork::DepositInventory { .. }
+        | ResidentTaskStepWork::DepositItems { .. }
+        | ResidentTaskStepWork::DepositShopStock { .. }
+        | ResidentTaskStepWork::PickupShopStock { .. }
+        | ResidentTaskStepWork::ReturnTools { .. } => ResidentStepPhase::CollectionDeposit,
+    }
+}
+
 fn resident_step_view(
     farm: &FarmState,
     catalog: &CatalogDocument,
     step: &ResidentTaskStep,
+    starts_at_ms: i64,
+    ends_at_ms: i64,
 ) -> ResidentStepView {
     let (activity, prop) = visual_cue_for_work(&step.work);
     let (quantity, kind) = step_quantity_and_kind(catalog, &step.work);
@@ -755,6 +816,9 @@ fn resident_step_view(
         quantity,
         kind,
         requires_resident: step.requires_resident(),
+        phase: resident_step_phase(&step.work),
+        starts_at_ms,
+        ends_at_ms,
         walk_duration_ms: step.walk_duration_ms,
         work_duration_ms: step.work_duration_ms,
         duration_ms: step.duration_ms,

@@ -3021,6 +3021,18 @@ function ResidentActions({
           <dt>Current step</dt>
           <dd>{currentStep ? residentTaskStepLabel(catalog, currentStep) : "None"}</dd>
         </div>
+        {currentStep ? (
+          <>
+            <div>
+              <dt>Phase</dt>
+              <dd>{stepPhaseLabel(currentStep.phase)}</dd>
+            </div>
+            <div>
+              <dt>Predicted</dt>
+              <dd>{predictedStepTiming(currentStep, work?.current_task, pose.state, nowMs)}</dd>
+            </div>
+          </>
+        ) : null}
         <div>
           <dt>Target</dt>
           <dd>{pose.label}</dd>
@@ -3170,7 +3182,9 @@ function ResidentTaskQueueRow({
             >
               <div>
                 <strong>{residentTaskStepLabel(catalog, step)}</strong>
-                <small>{step.target?.label ?? "Work target"}</small>
+                <small>
+                  {stepPhaseLabel(step.phase)} - {step.target?.label ?? "Work target"}
+                </small>
               </div>
               <span>
                 {step.requires_resident
@@ -3221,6 +3235,41 @@ function queueStateLabel(task: ResidentTaskSummaryView, fallback: string) {
     return "Queued";
   }
   return fallback;
+}
+
+function stepPhaseLabel(phase: ResidentStepView["phase"]) {
+  switch (phase) {
+    case "active_work":
+      return "Active work";
+    case "autonomous_wait":
+      return "Autonomous wait";
+    case "collection_deposit":
+      return "Collection/deposit";
+  }
+}
+
+/** Remaining time from the authoritative step schedule in the read model. */
+function predictedStepTiming(
+  step: ResidentStepView,
+  task: ResidentTaskSummaryView | undefined,
+  state: ReturnType<typeof currentResidentScenePose>["state"],
+  nowMs: number,
+) {
+  if (state === "blocked") {
+    return "Blocked";
+  }
+  const stepDone = secondsRemaining(step.ends_at_ms, nowMs);
+  const lead =
+    state === "walking"
+      ? `Arrives in ${secondsRemaining(step.starts_at_ms + step.walk_duration_ms, nowMs)}s, step done in ${stepDone}s`
+      : step.phase === "autonomous_wait"
+        ? `Resident needed in ${stepDone}s`
+        : `Step done in ${stepDone}s`;
+  const lastStep = task?.steps.at(-1);
+  if (!task || task.steps.length < 2 || !lastStep) {
+    return lead;
+  }
+  return `${lead} - task done in ${secondsRemaining(lastStep.ends_at_ms, nowMs)}s`;
 }
 
 function formatStepTiming(step: ResidentStepView) {

@@ -791,6 +791,8 @@ test("clicking a farm resident selects them, sends assignment command, and shows
   await expect(selection.getByText("Current task")).toBeVisible();
   await expect(selection.getByText("Plant Corn", { exact: true }).first()).toBeVisible();
   await expect(selection.getByText("Current step")).toBeVisible();
+  await expect(selection.getByText("Active work", { exact: true })).toBeVisible();
+  await expect(selection.getByText(/^Arrives in \d+s, step done in \d+s/)).toBeVisible();
   await expect(selection.getByText("Target")).toBeVisible();
   await expect(selection.getByText("Field Plot plot-1", { exact: true }).first()).toBeVisible();
   await expect(selection.getByLabel("Jon task progress")).toBeVisible();
@@ -912,12 +914,15 @@ test("Resident Details shows an autonomous wait as free Resident time", async ({
   await expect(details.getByRole("heading", { name: "Resident Details" })).toBeVisible();
   await expect(details.getByText("Waiting (free for other work)")).toBeVisible();
   await expect(details.getByText("Wheat growing").first()).toBeVisible();
+  await expect(details.getByText("Autonomous wait", { exact: true })).toBeVisible();
+  await expect(details.getByText(/^Resident needed in 5\ds - task done in 5\ds$/)).toBeVisible();
   const row = details.locator(".resident-queue-task").filter({ hasText: "Harvest Wheat" });
   await expect(row).toContainText("Waiting - 2 steps");
   await row.locator("summary").click();
   const waitStep = row.locator(".resident-queue-step--autonomous");
   await expect(waitStep).toContainText("Wheat growing");
   await expect(waitStep).toContainText("Resident free 60s");
+  await expect(row.locator(".resident-queue-steps li").nth(1)).toContainText("Collection/deposit - ");
 });
 
 test("mobile opens Resident Details as a bottom sheet", async ({ page }, testInfo) => {
@@ -4038,7 +4043,7 @@ function withResidentTaskQueues(
         queue: queue.map((task, index) =>
           taskSummary(view, task, index === 0 ? (waiting ? "waiting" : "current") : "queued"),
         ),
-        current_step: currentStep ? stepView(view, currentStep) : undefined,
+        current_step: currentTask ? stepViews(view, currentTask)[0] : undefined,
         target,
         scene: {
           tile: currentStep?.approach_tile ?? target?.tile ?? currentTile,
@@ -4072,7 +4077,7 @@ function taskSummary(
     kind: task.kind,
     label: taskLabelForStep(previewTargetStep),
     step_count: task.steps.length,
-    steps: task.steps.map((step) => stepView(view, step)),
+    steps: stepViews(view, task),
     preview: {
       path: task.steps.flatMap((step) => step.walk_path),
       target: previewTargetStep ? targetViewForStep(view, previewTargetStep) : undefined,
@@ -4083,7 +4088,27 @@ function taskSummary(
   };
 }
 
-function stepView(view: FarmView, step: ResidentTask["steps"][number]) {
+// Mirrors the Rust read model: the first Step ends at ready_at_ms, later Steps follow directly.
+function stepViews(view: FarmView, task: ResidentTask) {
+  let startsAt = task.started_at_ms;
+  let endsAt = task.ready_at_ms;
+  return task.steps.map((step, index) => {
+    if (index > 0) {
+      startsAt = endsAt;
+      endsAt += step.duration_ms;
+    }
+    return stepView(view, step, startsAt, endsAt);
+  });
+}
+
+function stepPhase(step: ResidentTask["steps"][number]) {
+  const type = step.work.type;
+  if (type === "autonomous_wait") return "autonomous_wait" as const;
+  if (type === "plant_crop" || type === "start_oven_recipe" || type === "feed_animal") return "active_work" as const;
+  return "collection_deposit" as const;
+}
+
+function stepView(view: FarmView, step: ResidentTask["steps"][number], startsAtMs: number, endsAtMs: number) {
   const cue = visualCueForStep(step);
   const target = targetViewForStep(view, step);
   const { quantity, kind } = stepQuantityAndKind(step);
@@ -4095,6 +4120,9 @@ function stepView(view: FarmView, step: ResidentTask["steps"][number]) {
     quantity,
     kind,
     requires_resident: step.work.type !== "autonomous_wait",
+    phase: stepPhase(step),
+    starts_at_ms: startsAtMs,
+    ends_at_ms: endsAtMs,
     walk_duration_ms: step.walk_duration_ms,
     work_duration_ms: step.work_duration_ms,
     duration_ms: step.duration_ms,
