@@ -1,3 +1,4 @@
+mod autonomous_wait;
 mod concrete_chain;
 
 use crate::{
@@ -371,6 +372,15 @@ pub fn apply_command(
 ) -> CommandOutcome {
     let elapsed_events = apply_elapsed(farm, catalog, now_ms);
     let previous_level = farm.level;
+    // Newly admitted manual work may use an autonomous wait; chain admission fits
+    // per job, and reorder/cancel change accepted work rather than admitting new work.
+    let before_admission = (!matches!(
+        command,
+        FarmCommand::AdmitConcreteChain { .. }
+            | FarmCommand::CancelResidentTask { .. }
+            | FarmCommand::ReorderResidentTask { .. }
+    ))
+    .then(|| farm.clone());
     let result = match command {
         FarmCommand::AdmitConcreteChain { chain_id, jobs } => {
             concrete_chain::admit(farm, catalog, &chain_id, &jobs)
@@ -479,6 +489,9 @@ pub fn apply_command(
 
     match result {
         Ok(mut events) => {
+            if let Some(before) = &before_admission {
+                autonomous_wait::fit_new_tasks(before, farm, catalog);
+            }
             let immediate_resident_events = complete_resident_tasks(farm, catalog, now_ms);
             grant_unclaimed_crop_starter_stock(farm, catalog);
             if farm.level != previous_level {
@@ -766,10 +779,25 @@ fn plan_resident_work(
     kind: ResidentTaskKind,
     steps: Vec<ResidentTaskStep>,
 ) -> Result<PlannedResidentWork, CommandError> {
+    plan_resident_work_after_queue(farm, catalog, now_ms, kind, steps, true)
+}
+
+/// `merge_cleanup` lets new work reuse the queue tail's carried Tools/items.
+/// Work fitted ahead of an autonomous wait keeps the tail intact instead.
+fn plan_resident_work_after_queue(
+    farm: &mut FarmState,
+    catalog: &CatalogDocument,
+    now_ms: i64,
+    kind: ResidentTaskKind,
+    steps: Vec<ResidentTaskStep>,
+    merge_cleanup: bool,
+) -> Result<PlannedResidentWork, CommandError> {
     find_resident_index(farm, &farm.selected_resident_id)?;
     let selected_resident_id = farm.selected_resident_id.clone();
     let mut scratch = farm.clone();
-    strip_trailing_cleanup_steps(&mut scratch, &selected_resident_id);
+    if merge_cleanup {
+        strip_trailing_cleanup_steps(&mut scratch, &selected_resident_id);
+    }
     let farm_plan = &scratch;
     validate_tool_timing(farm_plan)?;
     let started_at_ms = farm_plan
@@ -1119,7 +1147,10 @@ fn strip_trailing_cleanup_steps(farm: &mut FarmState, resident_id: &str) {
         .resident_task_queues
         .get(resident_id)
         .and_then(|queue| queue.last())
-        .is_some_and(|task| concrete_chain::required_task(farm, resident_id, &task.id))
+        .is_some_and(|task| {
+            concrete_chain::required_task(farm, resident_id, &task.id)
+                || concrete_chain::is_job_task(farm, resident_id, &task.id)
+        })
     {
         return;
     }
@@ -1911,6 +1942,7 @@ fn reconcile_tool_times(farm: &mut FarmState) -> Result<(), CommandError> {
         .sum::<usize>()
         + 1;
     for _ in 0..=budget {
+        autonomous_wait::absorb_predecessor_overrun(farm);
         let mut adjustment = None;
         for (resident, queue) in &farm.resident_task_queues {
             for pair in queue.windows(2) {
@@ -2045,7 +2077,8 @@ fn resident_task_step_work_duration_ms(work: &ResidentTaskStepWork) -> i64 {
         | ResidentTaskStepWork::DepositItems { .. }
         | ResidentTaskStepWork::DepositShopStock { .. }
         | ResidentTaskStepWork::PickupShopStock { .. }
-        | ResidentTaskStepWork::ReturnTools { .. } => 0,
+        | ResidentTaskStepWork::ReturnTools { .. }
+        | ResidentTaskStepWork::AutonomousWait { .. } => 0,
         ResidentTaskStepWork::PlantCrop { .. }
         | ResidentTaskStepWork::HarvestCrop { .. }
         | ResidentTaskStepWork::CollectMachineJob { .. }
@@ -2406,6 +2439,14 @@ fn ready_resident_task_step(
         }) {
             return None;
         }
+    }
+    // A wait cannot hand back to the Resident before its phase has begun.
+    if task
+        .steps
+        .first()
+        .is_some_and(|step| !autonomous_wait::phase_started(farm, step))
+    {
+        return None;
     }
     if let Some(ResidentTaskStep {
         work: ResidentTaskStepWork::CollectOvenJob { job_id, .. },
@@ -2919,6 +2960,8 @@ fn complete_resident_task_step(
             add_tool_source_tools(farm, &source, &tools);
             Ok(Vec::new())
         }
+        // The phase advances on its own; the wait's end only hands back to the Resident.
+        ResidentTaskStepWork::AutonomousWait { .. } => Ok(Vec::new()),
     }
 }
 
@@ -3084,7 +3127,8 @@ fn step_inventory_outputs(
         | ResidentTaskStepWork::DepositInventory { .. }
         | ResidentTaskStepWork::DepositItems { .. }
         | ResidentTaskStepWork::DepositShopStock { .. }
-        | ResidentTaskStepWork::ReturnTools { .. } => Vec::new(),
+        | ResidentTaskStepWork::ReturnTools { .. }
+        | ResidentTaskStepWork::AutonomousWait { .. } => Vec::new(),
     }
 }
 
@@ -4233,6 +4277,7 @@ fn is_reorder_base_work(work: &ResidentTaskStepWork) -> bool {
             | ResidentTaskStepWork::DepositInventory { .. }
             | ResidentTaskStepWork::DepositItems { .. }
             | ResidentTaskStepWork::ReturnTools { .. }
+            | ResidentTaskStepWork::AutonomousWait { .. }
     )
 }
 

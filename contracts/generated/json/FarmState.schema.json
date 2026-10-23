@@ -1100,6 +1100,49 @@
         }
       ]
     },
+    "AutonomousPhase": {
+      "description": "Farm-time production that advances without a Resident present.",
+      "oneOf": [
+        {
+          "description": "The crop on the Step's Field Plot is growing.",
+          "type": "object",
+          "properties": {
+            "crop_id": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "crop_growth"
+            }
+          },
+          "required": [
+            "type",
+            "crop_id"
+          ]
+        },
+        {
+          "description": "The Oven job is baking.",
+          "type": "object",
+          "properties": {
+            "job_id": {
+              "type": "string"
+            },
+            "recipe_id": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "oven_bake"
+            }
+          },
+          "required": [
+            "type",
+            "job_id",
+            "recipe_id"
+          ]
+        }
+      ]
+    },
     "BlockedResidentTask": {
       "type": "object",
       "properties": {
@@ -2586,6 +2629,23 @@
           },
           "required": [
             "type"
+          ]
+        },
+        {
+          "description": "An autonomous elapsed phase the task waits on without its Resident (#271).",
+          "type": "object",
+          "properties": {
+            "phase": {
+              "$ref": "#/$defs/AutonomousPhase"
+            },
+            "type": {
+              "type": "string",
+              "const": "autonomous_wait"
+            }
+          },
+          "required": [
+            "type",
+            "phase"
           ]
         }
       ]

@@ -18,7 +18,8 @@ export type ResidentTaskStatus = {
   label: string;
 };
 
-export type ResidentSceneState = "idle" | "walking" | "working" | "blocked";
+/** "waiting": the current task is in an autonomous phase and the Resident is free. */
+export type ResidentSceneState = "idle" | "walking" | "working" | "waiting" | "blocked";
 
 export type ResidentScenePose = {
   tile: { x: number; y: number };
@@ -85,7 +86,7 @@ export function residentVisualCue(
   nowMs: number,
 ): ResidentVisualCue {
   const pose = currentResidentScenePose(view, residentId, nowMs);
-  if (pose.state === "idle") {
+  if (pose.state === "idle" || pose.state === "waiting") {
     return { activity: "idle", prop: "none" };
   }
   if (pose.state === "walking") {
@@ -105,7 +106,7 @@ export function residentVisualPresentation(
   const carriedTool = carriedHeldTool(work);
   const carriedProp = carriedVisualProp(work);
 
-  if (pose.state === "idle") {
+  if (pose.state === "idle" || pose.state === "waiting") {
     return { activity: "idle", prop: "none", heldTool: "none", motion: "idle" };
   }
 
@@ -153,6 +154,10 @@ export function currentResidentScenePose(
       label: work.target?.label ?? "Blocked task",
       state: "blocked",
     };
+  }
+
+  if (work.state === "waiting") {
+    return { tile: work.scene.tile, label: work.current_step.label, state: "waiting" };
   }
 
   const walkEndsAtMs = work.current_task.started_at_ms + work.current_step.walk_duration_ms;
@@ -318,6 +323,7 @@ function heldToolForActivity(activity: ResidentVisualActivity): ResidentHeldTool
     case "returning_tools":
       return "tool_bundle";
     case "idle":
+    case "waiting":
     case "walking":
     case "picking_up_items":
     case "depositing_inventory":

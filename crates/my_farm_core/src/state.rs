@@ -634,10 +634,13 @@ impl ResidentTaskStep {
     /// The resources/presence this Step requires and which part of the Step each covers.
     /// Derived from the saved Step, so save/reload preserves it without a second ledger.
     pub fn requirements(&self) -> Vec<StepRequirementDeclaration> {
-        let mut declared = vec![StepRequirementDeclaration {
-            requirement: StepRequirement::Resident,
-            span: StepRequirementSpan::WalkAndWork,
-        }];
+        let mut declared = Vec::new();
+        if self.requires_resident() {
+            declared.push(StepRequirementDeclaration {
+                requirement: StepRequirement::Resident,
+                span: StepRequirementSpan::WalkAndWork,
+            });
+        }
         if let Some(tool_kind) = self.work.required_tool() {
             declared.push(StepRequirementDeclaration {
                 requirement: StepRequirement::Tool { tool_kind },
@@ -672,6 +675,15 @@ impl ResidentTaskStep {
                 ends_at_ms,
             })
             .collect()
+    }
+
+    /// Autonomous-wait Steps release the Resident; every other Step needs one.
+    pub fn requires_resident(&self) -> bool {
+        !self.is_autonomous_wait()
+    }
+
+    pub fn is_autonomous_wait(&self) -> bool {
+        matches!(self.work, ResidentTaskStepWork::AutonomousWait { .. })
     }
 
     /// The exclusive work target this Step claims, if any.
@@ -771,6 +783,20 @@ pub enum ResidentTaskStepWork {
         #[serde(default)]
         tools: Vec<ToolStack>,
     },
+    /// An autonomous elapsed phase the task waits on without its Resident (#271).
+    AutonomousWait {
+        phase: AutonomousPhase,
+    },
+}
+
+/// Farm-time production that advances without a Resident present.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, PartialEq, Eq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum AutonomousPhase {
+    /// The crop on the Step's Field Plot is growing.
+    CropGrowth { crop_id: String },
+    /// The Oven job is baking.
+    OvenBake { job_id: String, recipe_id: String },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, TS, PartialEq, Eq)]
