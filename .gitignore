@@ -13,4 +13,4 @@
 *.sqlite-wal
 /.artifacts/
 /apps/web/public/farm-art/
-/apps/web/wheat-evidence/
+/apps/web/crop-evidence/

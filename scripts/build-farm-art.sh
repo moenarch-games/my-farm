@@ -19,6 +19,8 @@ test "$(git -C "$source" rev-parse HEAD)" = "$pin"
   test -x "$ASSET_TOOLING_BLENDER"
   bun examples/tilled-soil/build.ts
   bun examples/wheat/build.ts
+  bun examples/corn/build.ts
+  bun examples/feedback-kits/build.ts
 )
 node "$root/scripts/stage-farm-art.mjs" "$source"
 node "$root/scripts/verify-farm-art.mjs"

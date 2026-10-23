@@ -10,6 +10,9 @@ type ResourceIconProps =
       type: "coins" | "xp" | "level" | "silo" | "barn";
     };
 
+// Items with a generated asset-tooling icon (see scripts/farm-art-source.json).
+const GENERATED_ICON_ITEMS: ReadonlySet<string> = new Set(["wheat", "corn"]);
+
 type IconMeta = {
   className: string;
   glyph: string;
@@ -23,8 +26,8 @@ export function ResourceIcon(props: ResourceIconProps) {
       data-glyph={meta.glyph}
       aria-hidden="true"
     >
-      {props.type === "item" && props.itemId === "wheat" ? (
-        <img className="resource-icon__art" src={`${import.meta.env.BASE_URL}farm-art/wheat-mature-straw.png`} alt="" />
+      {props.type === "item" && GENERATED_ICON_ITEMS.has(props.itemId) ? (
+        <img className="resource-icon__art" src={`${import.meta.env.BASE_URL}farm-art/${props.itemId}-mature-straw.png`} alt="" />
       ) : null}
     </span>
   );

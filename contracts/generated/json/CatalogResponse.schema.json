@@ -416,12 +416,12 @@
         {
           "type": "object",
           "properties": {
+            "machine_kind": {
+              "$ref": "#/$defs/MachineKind"
+            },
             "type": {
               "type": "string",
               "const": "machine"
-            },
-            "machine_kind": {
-              "$ref": "#/$defs/MachineKind"
             }
           },
           "required": [
