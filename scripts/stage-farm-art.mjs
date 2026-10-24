@@ -27,6 +27,21 @@ for (const [crop, stages] of Object.entries(config.crops)) {
     }
   }
 }
+{
+  const packageDir = path.join(upstream, ".artifacts/farm-structures/bundle");
+  const manifest = JSON.parse(await readFile(path.join(packageDir, "manifest.json"), "utf8"));
+  assert.equal(manifest.profile, config.profile);
+  assert.equal(manifest.schemaVersion, 1);
+  for (const [structure, variant] of Object.entries(config.structures)) {
+    const entry = manifest.assets.find((asset) => asset.key === `${structure}.mesh` && asset.variant === variant);
+    assert.ok(entry, `Missing packaged ${structure} mesh variant ${variant}`);
+    assert.match(entry.path, /^assets\/[0-9a-f]{64}\.glb$/);
+    const bytes = await readFile(path.join(packageDir, entry.path));
+    assert.equal(bytes.length, entry.source.byteLength, entry.path);
+    assert.equal(createHash("sha256").update(bytes).digest("hex"), entry.source.sha256, entry.path);
+    selected.push({ name: `${structure}-${variant}.glb`, bytes, source: entry.source });
+  }
+}
 for (const channel of ["color", "normal", "roughness"]) {
   const name = `${config.soilPreset}-${channel}.png`;
   const bytes = await readFile(path.join(upstream, ".artifacts/tilled-soil", name));

@@ -15,6 +15,7 @@ assert.equal(manifest.profile, config.profile);
 const expected = [
   ...Object.entries(config.crops).flatMap(([crop, stages]) =>
     stages.flatMap((stage) => [`${crop}-${stage}.glb`, `${crop}-${stage}.png`])),
+  ...Object.entries(config.structures).map(([structure, variant]) => `${structure}-${variant}.glb`),
   ...["color", "normal", "roughness"].map((channel) => `${config.soilPreset}-${channel}.png`),
   ...Object.entries(config.feedbackKits ?? {}).flatMap(([kit, intensity]) =>
     ["wav", "atlas.png", "reduced-motion.png", "json"].map((suffix) => `${kit}.${intensity}.${suffix}`)),
@@ -30,4 +31,4 @@ for (const name of expected) {
   assert.equal(entry.source.kind, kind, name);
   if (entry.source.sha256) assert.equal(entry.source.sha256, entry.sha256);
 }
-console.log(`Verified ${expected.length} pinned Crop and Field Plot assets`);
+console.log(`Verified ${expected.length} pinned Crop, Field Plot and Structure assets`);

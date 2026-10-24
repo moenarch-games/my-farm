@@ -1,4 +1,4 @@
-import { Billboard, Html, Text, useTexture } from "@react-three/drei";
+import { Billboard, Html, Text, useGLTF, useTexture } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef, type JSX } from "react";
 import * as THREE from "three";
@@ -425,9 +425,17 @@ function SelectionPlate({
 function renderStructure(kind: Exclude<FarmAssetKind, "ground_tile" | "field_plot">, footprint: StructureFootprint, state: FarmAssetState) {
   switch (kind) {
     case "farm_house":
-      return <FarmHouse />;
+      return (
+        <Suspense fallback={<FarmHouse />}>
+          <ToyStructure file="farmhouse-toy.glb" />
+        </Suspense>
+      );
     case "silo":
-      return <Silo footprint={footprint} />;
+      return (
+        <Suspense fallback={<Silo footprint={footprint} />}>
+          <ToyStructure file="silo-toy.glb" />
+        </Suspense>
+      );
     case "barn":
       return <Barn footprint={footprint} state={state} />;
     case "feed_mill":
@@ -445,6 +453,24 @@ function renderStructure(kind: Exclude<FarmAssetKind, "ground_tile" | "field_plo
   }
 }
 
+// Toy-like asset-tooling structures (my-farm#234): origin at the footprint's ground centre, front +Z.
+// Visual only; footprints, picking and pathfinding stay on the gameplay geometry.
+function ToyStructure({ file }: { file: string }) {
+  const { scene } = useGLTF(farmArt(file));
+  const model = useMemo(() => {
+    const clone = scene.clone(true);
+    clone.traverse((object: THREE.Object3D) => {
+      if (object instanceof THREE.Mesh) {
+        object.castShadow = true;
+        object.receiveShadow = true;
+      }
+    });
+    return clone;
+  }, [scene]);
+  return <primitive object={model} position={[0, 0.08, 0]} />;
+}
+
+// Code-drawn fallbacks while the toy GLBs load.
 function FarmHouse() {
   return (
     <group position={[0, 0.08, 0]}>
