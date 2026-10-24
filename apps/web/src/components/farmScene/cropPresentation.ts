@@ -11,29 +11,27 @@ export type CropLayout = {
 
 export const CROP_LAYOUTS: Record<GeneratedCrop, CropLayout> = {
   wheat: {
-    // A thick patch of thin stalks.
+    // Each Wheat model is already a chunky 5-stalk golden sheaf, so a handful of
+    // sheaves fill the plot; the toy look may spill past the Field Plot edge.
     positions: [
-      [-0.20, -0.21, 0.10], [-0.06, -0.23, 2.40], [0.08, -0.22, 1.15], [0.21, -0.18, 3.80],
-      [-0.21, -0.07, 2.30], [-0.06, -0.07, 0.80], [0.09, -0.06, 4.10], [0.21, -0.03, 1.45],
-      [-0.21, 0.08, 3.65], [-0.06, 0.09, 1.90], [0.08, 0.09, 0.30], [0.21, 0.11, 2.70],
-      [-0.20, 0.22, 0.75], [-0.06, 0.22, 3.10], [0.09, 0.21, 2.20], [0.21, 0.21, 5.20],
+      [-0.13, -0.13, 0.10], [0.13, -0.12, 2.40], [0.00, 0.01, 4.10],
+      [-0.12, 0.13, 1.15], [0.13, 0.13, 3.80],
     ],
     scale: {
       // Young Wheat must read as a leafy green patch, not as empty brown soil.
-      early: 1.9,
-      // A recognizably taller, golden head-bearing patch at the overview zoom.
-      mature: 1.3,
-      ready: 1.3,
+      early: 1.4,
+      // Tall golden sheaves with oversized ears, clearly bigger than early Wheat.
+      mature: 1.0,
+      ready: 1.0,
     },
     model: { early: "wheat-early.glb", mature: "wheat-mature-straw.glb", ready: "wheat-mature-straw.glb" },
   },
   corn: {
-    // Few, oversized, chunky plants so Corn reads differently from Wheat at a glance.
+    // Few, oversized lime-green plants so Corn reads differently from Wheat at a glance.
     positions: [
-      [-0.19, -0.19, 0.40], [0.19, -0.18, 2.10], [0.00, 0.01, 4.30],
-      [-0.18, 0.19, 1.30], [0.19, 0.19, 5.60],
+      [-0.12, -0.11, 0.40], [0.13, -0.06, 2.10], [-0.02, 0.14, 4.30],
     ],
-    scale: { early: 1.4, mature: 1.1, ready: 1.1 },
+    scale: { early: 1.2, mature: 1.15, ready: 1.15 },
     model: { early: "corn-early.glb", mature: "corn-mature-straw.glb", ready: "corn-mature-straw.glb" },
   },
 };
