@@ -4,7 +4,7 @@ See [the Decision Atlas](docs/decisions/atlas.md) for the single append-only Mar
 
 My Farm is a standalone local farming sim. In local development, a Rust server owns the farm state, persists it to SQLite, and exposes a small JSON API consumed by a browser client rendered with React Three Fiber.
 
-GitHub Pages **currently** serves a restricted browser-local Rust/WASM subset that saves in localStorage. The [Atlas-approved current target](docs/decisions/atlas.md), tracked for implementation and acceptance by [#126](https://github.com/moritzbrantner/my-farm/issues/126) and [#153](https://github.com/moritzbrantner/my-farm/issues/153), is full *eligible single-player* parity, delivered incrementally as real Pages gameplay slices. Existing omissions are unfinished integration, not a permanently accepted demo-only product.
+GitHub Pages **currently** serves a restricted browser-local Rust/WASM subset that saves in localStorage. The [Atlas-approved current target](docs/decisions/atlas.md), tracked for implementation and acceptance by [#126](https://github.com/moenarch-games/my-farm/issues/126) and [#153](https://github.com/moenarch-games/my-farm/issues/153), is full *eligible single-player* parity, delivered incrementally as real Pages gameplay slices. Existing omissions are unfinished integration, not a permanently accepted demo-only product.
 
 ## Run
 
