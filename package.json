@@ -25,6 +25,7 @@
     "storybook": "cd apps/web && bun run storybook",
     "build:storybook": "cd apps/web && bun run build:storybook",
     "test:mobile": "cd apps/mobile && bun test",
+    "test:web": "bun test apps/web/src/features",
     "test:e2e:mobile": "cd apps/mobile && maestro test e2e",
     "test:e2e": "cd apps/web && bun run test:e2e",
     "test:e2e:pages-demo": "cd apps/web && bun run test:e2e:pages-demo",
