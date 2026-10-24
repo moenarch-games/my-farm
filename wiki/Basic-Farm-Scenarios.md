@@ -4,7 +4,7 @@ This page is the reading order for compact scenario cards that explain the playa
 
 Publication note: these files are staged as copy-ready GitHub Wiki markdown because the wiki remote is not currently reachable. When the wiki is enabled, publish each file as the page with the matching filename stem.
 
-PRD: [PRD: Basic Farm Scenario Wiki Pack](https://github.com/moritzbrantner/my-farm/issues/90)
+PRD: [PRD: Basic Farm Scenario Wiki Pack](https://github.com/moenarch-games/my-farm/issues/90)
 
 ## Scope
 

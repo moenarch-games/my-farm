@@ -1,6 +1,6 @@
 # Safe Resident Task stop: independent acceptance for #221
 
-This is the bounded Rust-core prerequisite of [#134](https://github.com/moritzbrantner/my-farm/issues/134), upstream of #171/#172/#200. It does not close those PRDs. Authoritative intent is current Atlas **3.1.2, 3.2.2**, #134's chosen **B** finish-active-step/physical-cleanup policy, and ADRs0011–0018/0022/0023. The separate acceptance context inspected baseline `90c7dafc2c9c3634a9f287fbe5785d200357101a` before production. Local AGENTS/domain/CONTEXT apply; live conventions resolved successfully with no diagnostics, all29 listed files read, sourceRevision `46d8793bb3034326561f876dcc67dbaa5aa1e432`.
+This is the bounded Rust-core prerequisite of [#134](https://github.com/moenarch-games/my-farm/issues/134), upstream of #171/#172/#200. It does not close those PRDs. Authoritative intent is current Atlas **3.1.2, 3.2.2**, #134's chosen **B** finish-active-step/physical-cleanup policy, and ADRs0011–0018/0022/0023. The separate acceptance context inspected baseline `90c7dafc2c9c3634a9f287fbe5785d200357101a` before production. Local AGENTS/domain/CONTEXT apply; live conventions resolved successfully with no diagnostics, all29 listed files read, sourceRevision `46d8793bb3034326561f876dcc67dbaa5aa1e432`.
 
 ## Immutable outcomes and routine seams
 
