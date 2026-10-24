@@ -98,7 +98,7 @@ test("published asset-tooling Crops and soil are actual pinned web resources", a
   const manifest = await request.get("/farm-art/manifest.json");
   expect(manifest.ok()).toBe(true);
   const data = await manifest.json();
-  expect(data.assetToolingCommit).toBe("a2f17916602f581f41be55509afc59af03f658c2");
+  expect(data.assetToolingCommit).toBe("98e6356047733d4dbf63eb197a0ec2e3813d86f4");
   const names = Object.keys(data.files);
   expect(names).toContain("farmhouse-toy.glb");
   expect(names).toContain("silo-toy.glb");

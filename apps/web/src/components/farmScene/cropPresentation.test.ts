@@ -2,11 +2,11 @@ import { describe, expect, test } from "bun:test";
 import { CROP_LAYOUTS, cropWindRotation } from "./cropPresentation";
 
 describe("readable but bounded generated Crop Field Plot presentation", () => {
-  test("renders a dense, fixed patch of generated Wheat inside the Field Plot", () => {
+  test("renders a few fixed generated Wheat sheaves inside the Field Plot", () => {
     const wheat = CROP_LAYOUTS.wheat;
-    expect(wheat.positions.length).toBe(16);
-    expect(wheat.scale.early).toBeGreaterThan(1.5);
-    expect(wheat.scale.mature).toBeGreaterThan(1);
+    expect(wheat.positions.length).toBe(5);
+    expect(wheat.scale.early).toBeGreaterThan(wheat.scale.mature);
+    expect(wheat.scale.mature).toBeGreaterThan(0.5);
   });
 
   test("Corn is a sparser patch of distinct models, not resized Wheat", () => {
