@@ -6,7 +6,7 @@
       "name": "my-farm",
       "devDependencies": {
         "@playwright/test": "1.64.1",
-        "bun-types": "1.4.3",
+        "bun-types": "1.4.4",
         "typescript": "5.9.3",
       },
     },
@@ -84,7 +84,7 @@
         "@my-farm/contracts": "workspace:*",
       },
       "devDependencies": {
-        "bun-types": "1.4.3",
+        "bun-types": "1.4.4",
       },
     },
     "packages/game-model": {
@@ -94,7 +94,7 @@
         "@my-farm/contracts": "workspace:*",
       },
       "devDependencies": {
-        "bun-types": "1.4.3",
+        "bun-types": "1.4.4",
       },
     },
     "packages/game-scene": {
@@ -110,7 +110,7 @@
       "devDependencies": {
         "@types/react": "19.3.0",
         "@types/three": "0.186.0",
-        "bun-types": "1.4.3",
+        "bun-types": "1.4.4",
       },
     },
   },
@@ -917,7 +917,7 @@
 
     "buffer-from": ["buffer-from@1.1.2", "", {}, "sha512-E+XQCRwSbaaiChtv6k6Dwgc+bx+Bs6vuKJHHl5kox/BaKbhiXzqQOwK4cO22yElGp2OCmjwVhT3HmxgyPGnJfQ=="],
 
-    "bun-types": ["bun-types@1.4.3", "", { "dependencies": { "@types/node": "*", "undici-types": "*" } }, "sha512-tinRJNGOmUN+tEAsn2y2e942n9JHRHR42iUYzDH75NmhJqVBokGSQkkfSFdNWwsANIdrK6ACH9t01M452YyTwg=="],
+    "bun-types": ["bun-types@1.4.4", "", { "dependencies": { "@types/node": "*", "undici-types": "*" } }, "sha512-yjrJh5oGX7mMPKGd19YXyIjmEuj4G4zNC30bs7PM9Az7NQ3ndF3j6hbeRdvJTRQEhJ/FYQwW0a2moweEi2hMxQ=="],
 
     "bundle-name": ["bundle-name@4.1.1", "", { "dependencies": { "run-applescript": "^7.0.0" } }, "sha512-DdH81/zPLVS11EUgWq3tEu/xn+EzljlMYooDNdzWEnFha3R3NBMpMV1UqYIpjYHV/SgpFKMIX1Oh7o06SjM/oA=="],
 
