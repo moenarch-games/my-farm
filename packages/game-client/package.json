@@ -10,6 +10,6 @@
     "@my-farm/contracts": "workspace:*"
   },
   "devDependencies": {
-    "bun-types": "1.4.3"
+    "bun-types": "1.4.4"
   }
 }
